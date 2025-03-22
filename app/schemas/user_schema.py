@@ -6,17 +6,17 @@ class UserCreate(BaseModel):
     email: EmailStr
 
 class User(BaseModel):
-    user_id: int
-    name: str
-    email: EmailStr
+    user_id: str
+    user_name: str
+    e_mail: EmailStr
 
     class Config:
         from_attributes = True
 
 class UserResponse(BaseModel):
-    user_id: int
-    name: str
-    email: EmailStr
+    user_id: str
+    user_name: str
+    e_mail: EmailStr
 
     class Config:
         from_attributes = True

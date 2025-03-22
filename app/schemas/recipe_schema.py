@@ -9,12 +9,24 @@ class RecipeCard(BaseModel):
     fields: List[str]
 
 class UserPreferences(BaseModel):
-    user_id: int
+    user_id: str
     dairy_free: bool
     gluten_free: bool
     pescetarian: bool
     vegan: bool
     vejetaryen: bool
+
+class UserAllergies(BaseModel):
+    user_id: str
+    allergies: List[str]
+
+class UserIngredients(BaseModel):
+    user_id: str
+    ingredients: List[str]
+
+class GetQueryRequest(BaseModel):
+    query: str  # JSON-encoded query
+    sortBy: Dict[str, str]
 
 class RecipeQuery(BaseModel):
     query: Optional[Dict[str, Any]] = None

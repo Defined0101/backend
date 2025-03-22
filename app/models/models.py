@@ -16,6 +16,7 @@ class User(Base):
     saved_recipes = relationship("SavedRecipes", back_populates="user")
     liked_recipes = relationship("LikedRecipe", back_populates="user")
     allergies = relationship("Allergies", back_populates="user")
+    ingredients = relationship("UserIngredient", back_populates="user")
 
 class UserPref(Base):
     __tablename__ = "user_pref"
@@ -66,6 +67,7 @@ class Ingredient(Base):
     # İlişkiler
     recipe_ingredients = relationship("RecipeIngr", back_populates="ingredient")
     allergies = relationship("Allergies", back_populates="ingredient")
+    user_ingredients = relationship("UserIngredient", back_populates="ingredient")
 
 class RecipeIngr(Base):
     __tablename__ = "recipe_ingr"
@@ -108,6 +110,16 @@ class Allergies(Base):
     # İlişkiler
     user = relationship("User", back_populates="allergies")
     ingredient = relationship("Ingredient", back_populates="allergies")
+
+class UserIngredient(Base):
+    __tablename__ = "user_ingredients"
+    
+    user_id = Column(String, ForeignKey("users.user_id"), primary_key=True)
+    ingr_id = Column(Integer, ForeignKey("ingredient.ingr_id"), primary_key=True)
+    
+    # İlişkiler
+    user = relationship("User", back_populates="ingredients")
+    ingredient = relationship("Ingredient", back_populates="user_ingredients")
 
 class Preference(Base):
     __tablename__ = "preference"
