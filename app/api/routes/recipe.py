@@ -14,11 +14,9 @@ from app.services.recipe_service import (
     get_user_allergies,
     set_user_allergies,
     get_user_recommendations,
-    get_recipes_by_query,
-    get_user_ingredients,
-    set_user_ingredients
+    get_recipes_by_query
 )
-from app.schemas.recipe_schema import RecipeDetails, RecipeCard, UserPreferences, RecipeQuery, UserAllergies, UserIngredients
+from app.schemas.recipe_schema import RecipeDetails, RecipeCard, UserPreferences, RecipeQuery, UserAllergies
 from typing import List, Dict, Any
 
 router = APIRouter()
@@ -139,17 +137,12 @@ def recipe_card_post(payload: RecipeCard, db: Session = Depends(get_db)):
 @router.get("/getUserPreferences/{user_id}", 
            summary="Get user dietary preferences",
            description="Returns the dietary preferences for a specific user.",
-           response_description="User preferences object with boolean flags")
+           response_description="User preferences object with preference IDs")
 def user_preferences(user_id: str, db: Session = Depends(get_db)):
     """
     Retrieve user dietary preferences by user ID.
     
-    This endpoint returns the dietary preferences for a user, including:
-    - Dairy-free
-    - Gluten-free
-    - Pescetarian
-    - Vegan
-    - Vegetarian
+    This endpoint returns the dietary preference IDs for a user.
     
     If preferences are not found for the user, a 404 error is returned.
     """
@@ -166,14 +159,8 @@ def set_preferences(preferences: UserPreferences, db: Session = Depends(get_db))
     """
     Set or update user dietary preferences.
     
-    This endpoint allows setting boolean flags for various dietary preferences:
-    - Dairy-free
-    - Gluten-free
-    - Pescetarian
-    - Vegan
-    - Vegetarian
-    
-    The request should include the user_id and boolean values for each preference.
+    This endpoint allows setting preference IDs for a user.
+    The request should include the user_id and a list of preference IDs.
     """
     return set_user_preferences(db, preferences)
 
@@ -197,7 +184,7 @@ def query(payload: RecipeQuery, db: Session = Depends(get_db)):
 @router.get("/getIngredients", 
            summary="Get all ingredients",
            description="Returns a list of all available ingredients in the system.",
-           response_description="List of ingredient names")
+           response_description="List of ingredients with ID and name")
 def get_ingredients(db: Session = Depends(get_db)):
     """
     Retrieve all ingredients.
@@ -209,7 +196,7 @@ def get_ingredients(db: Session = Depends(get_db)):
 @router.get("/getAllergies", 
            summary="Get all possible allergies",
            description="Returns a list of all ingredients that can be allergies.",
-           response_description="List of ingredient names")
+           response_description="List of ingredients with ID and name")
 def get_allergies(db: Session = Depends(get_db)):
     """
     Retrieve all possible allergies.
@@ -222,7 +209,7 @@ def get_allergies(db: Session = Depends(get_db)):
 @router.get("/getUserAllergies", 
            summary="Get user allergies",
            description="Returns the allergies for a specific user.",
-           response_description="User allergies object with list of ingredient names")
+           response_description="User allergies object with list of ingredient IDs")
 def get_user_allergies_endpoint(
     user_id: str = Query(..., description="The unique identifier of the user"), 
     db: Session = Depends(get_db)
@@ -230,7 +217,7 @@ def get_user_allergies_endpoint(
     """
     Retrieve allergies for a specific user.
     
-    This endpoint returns a list of ingredients that the user has marked as allergies.
+    This endpoint returns a list of ingredient IDs that the user has marked as allergies.
     """
     return get_user_allergies(db, user_id)
 
@@ -242,8 +229,8 @@ def set_user_allergies_endpoint(allergies: UserAllergies, db: Session = Depends(
     """
     Set or update user allergies.
     
-    This endpoint allows setting a list of ingredients that the user is allergic to.
-    The request should include the user_id and a list of ingredient names.
+    This endpoint allows setting a list of ingredient IDs that the user is allergic to.
+    The request should include the user_id and a list of ingredient IDs.
     """
     return set_user_allergies(db, allergies)
 
@@ -256,13 +243,12 @@ def get_recommendations(
     db: Session = Depends(get_db)
 ):
     """
-    Get recipe recommendations for a user.
+    Retrieve personalized recipe recommendations for a user.
     
-    This endpoint returns personalized recipe recommendations based on:
+    This endpoint returns a list of recipes recommended for a specific user, based on:
     - User preferences
     - User allergies
-    - User ingredients
-    - Past interactions (liked recipes, saved recipes)
+    - Popular recipes
     
     If user_id is not provided, general recommendations are returned.
     """
@@ -274,9 +260,9 @@ def get_recommendations(
            response_description="List of preference objects with id and name")
 def get_preferences(db: Session = Depends(get_db)):
     """
-    Retrieve all dietary preferences (alias for getLabels).
+    Retrieve all dietary preferences.
     
-    This endpoint returns all possible dietary preferences, identical to the getLabels endpoint.
+    This endpoint is identical to `/getLabels` and returns all available dietary preferences.
     """
     return get_all_labels(db)
 
@@ -293,40 +279,9 @@ def query_get(
     """
     Query recipes based on various criteria (GET method).
     
-    This endpoint allows searching for recipes by:
-    - Recipe name
-    - Ingredients
-    - Other criteria
+    This endpoint is functionally identical to the POST /query endpoint but accepts 
+    parameters via query string instead of request body.
     
-    The results can be sorted by various fields in ascending or descending order.
+    The query parameter should be a JSON-encoded string containing search criteria.
     """
-    return get_recipes_by_query(db, query, sortBy_field, sortBy_direction)
-
-@router.get("/getUserIngredients", 
-           summary="Get user ingredients",
-           description="Returns the ingredients that a user has in their inventory.",
-           response_description="User ingredients object with list of ingredient names")
-def get_user_ingredients_endpoint(
-    user_id: str = Query(..., description="The unique identifier of the user"), 
-    db: Session = Depends(get_db)
-):
-    """
-    Retrieve ingredients for a specific user.
-    
-    This endpoint returns a list of ingredients that the user has in their inventory.
-    These can be used to suggest recipes based on what the user already has available.
-    """
-    return get_user_ingredients(db, user_id)
-
-@router.post("/setUserIngredients", 
-           summary="Set user ingredients",
-           description="Updates the ingredients in a user's inventory.",
-           response_description="Success message and updated ingredients list")
-def set_user_ingredients_endpoint(ingredients: UserIngredients, db: Session = Depends(get_db)):
-    """
-    Set or update user ingredients.
-    
-    This endpoint allows setting a list of ingredients that the user has in their inventory.
-    The request should include the user_id and a list of ingredient names.
-    """
-    return set_user_ingredients(db, ingredients) 
+    return get_recipes_by_query(db, query, sortBy_field, sortBy_direction) 

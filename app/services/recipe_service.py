@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from app.models.models import Category, Recipe, UserPref, Preference, Ingredient, RecipeIngr, Allergies, User, UserIngredient
+from app.models.models import Category, Recipe, UserPref, Preference, Ingredient, RecipeIngr, Allergy, User
 from app.schemas.recipe_schema import RecipeDetails, RecipeCard, UserPreferences, RecipeQuery, UserAllergies, UserIngredients
 from typing import List, Dict, Any
 import json
@@ -84,64 +84,36 @@ def get_user_preferences(db: Session, user_id: str):
     """Get user preferences by user ID"""
     # UserPref tablosundan kullanıcının tercihlerini alalım
     user_prefs = db.query(UserPref, Preference).\
-        join(Preference, UserPref.pref_id == Preference.preference_id).\
+        join(Preference, UserPref.pref_id == Preference.pref_id).\
         filter(UserPref.user_id == user_id).all()
     
     if not user_prefs:
         return None
     
-    # Tercihleri dönüştürelim
-    preferences = {}
+    # Kullanıcının tercih ID'lerini döndürelim
+    preferences = []
     for user_pref, preference in user_prefs:
-        pref_name = preference.name.lower() if preference.name else ""
-        if pref_name == "dairy_free":
-            preferences["dairy_free"] = True
-        elif pref_name == "gluten_free":
-            preferences["gluten_free"] = True
-        elif pref_name == "pescetarian":
-            preferences["pescetarian"] = True
-        elif pref_name == "vegan":
-            preferences["vegan"] = True
-        elif pref_name == "vejetaryen":
-            preferences["vejetaryen"] = True
+        preferences.append(preference.pref_id)
     
-    # Varsayılan değerleri ekleyelim
-    preferences.setdefault("dairy_free", False)
-    preferences.setdefault("gluten_free", False)
-    preferences.setdefault("pescetarian", False)
-    preferences.setdefault("vegan", False)
-    preferences.setdefault("vejetaryen", False)
-    
-    return preferences
+    return {"user_id": user_id, "preferences": preferences}
 
 def set_user_preferences(db: Session, preferences: UserPreferences):
     """Set or update user preferences"""
     try:
+        # Kullanıcının mevcut olup olmadığını kontrol edelim
+        user = db.query(User).filter(User.user_id == preferences.user_id).first()
+        if not user:
+            return {"error": "User not found"}
+            
         # Önce kullanıcının tercihlerini silelim
         db.query(UserPref).filter(UserPref.user_id == preferences.user_id).delete()
         
-        # Preference tablosundan tercihlerin ID'lerini alalım
-        pref_map = {}
-        all_prefs = db.query(Preference).all()
-        for pref in all_prefs:
-            pref_name = pref.name.lower() if pref.name else ""
-            pref_map[pref_name] = pref.preference_id
-        
         # Yeni tercihleri ekleyelim
-        if preferences.dairy_free and "dairy_free" in pref_map:
-            db.add(UserPref(user_id=preferences.user_id, pref_id=pref_map["dairy_free"]))
-        
-        if preferences.gluten_free and "gluten_free" in pref_map:
-            db.add(UserPref(user_id=preferences.user_id, pref_id=pref_map["gluten_free"]))
-        
-        if preferences.pescetarian and "pescetarian" in pref_map:
-            db.add(UserPref(user_id=preferences.user_id, pref_id=pref_map["pescetarian"]))
-        
-        if preferences.vegan and "vegan" in pref_map:
-            db.add(UserPref(user_id=preferences.user_id, pref_id=pref_map["vegan"]))
-        
-        if preferences.vejetaryen and "vejetaryen" in pref_map:
-            db.add(UserPref(user_id=preferences.user_id, pref_id=pref_map["vejetaryen"]))
+        for pref_id in preferences.preferences:
+            # Tercih ID'sinin geçerli olup olmadığını kontrol edelim
+            pref = db.query(Preference).filter(Preference.pref_id == pref_id).first()
+            if pref:
+                db.add(UserPref(user_id=preferences.user_id, pref_id=pref_id))
         
         db.commit()
         return {"message": "Preferences updated", "preferences": preferences}
@@ -228,7 +200,7 @@ def query_recipes(db: Session, query_data: Dict[str, Any] = None, sort_data: Dic
 def get_all_ingredients(db: Session):
     """Get all ingredients from the database"""
     ingredients = db.query(Ingredient).all()
-    return [ingredient.ingr_name for ingredient in ingredients]
+    return [{"ingr_id": ingredient.ingr_id, "ingr_name": ingredient.ingr_name} for ingredient in ingredients]
 
 def get_all_allergies(db: Session):
     """Get all possible allergies/ingredients that can be allergies"""
@@ -238,31 +210,36 @@ def get_all_allergies(db: Session):
 def get_user_allergies(db: Session, user_id: str):
     """Get allergies for a specific user"""
     # Get the user's allergies from the allergies table
-    allergies = db.query(Allergies, Ingredient).\
-        join(Ingredient, Allergies.ingr_id == Ingredient.ingr_id).\
-        filter(Allergies.user_id == user_id).all()
+    allergies = db.query(Allergy, Ingredient).\
+        join(Ingredient, Allergy.ingr_id == Ingredient.ingr_id).\
+        filter(Allergy.user_id == user_id).all()
     
     if not allergies:
         return {"user_id": user_id, "allergies": []}
     
-    # Convert to response format
+    # Convert to response format - return ingr_ids
     return {
         "user_id": user_id,
-        "allergies": [ingredient.ingr_name for _, ingredient in allergies]
+        "allergies": [allergy.ingr_id for allergy, _ in allergies]
     }
 
 def set_user_allergies(db: Session, user_allergies: UserAllergies):
     """Set or update user allergies"""
     try:
-        # First, remove existing allergies for this user
-        db.query(Allergies).filter(Allergies.user_id == user_allergies.user_id).delete()
+        # Kullanıcının mevcut olup olmadığını kontrol edelim
+        user = db.query(User).filter(User.user_id == user_allergies.user_id).first()
+        if not user:
+            return {"error": "User not found"}
+            
+        # Önce kullanıcının alerjilerini silelim
+        db.query(Allergy).filter(Allergy.user_id == user_allergies.user_id).delete()
         
-        # Then add new allergies
-        for allergy_name in user_allergies.allergies:
-            # Find ingredient by name
-            ingredient = db.query(Ingredient).filter(Ingredient.ingr_name.ilike(f"%{allergy_name}%")).first()
+        # Yeni alerjileri ekleyelim
+        for ingr_id in user_allergies.allergies:
+            # Malzeme ID'sinin geçerli olup olmadığını kontrol edelim
+            ingredient = db.query(Ingredient).filter(Ingredient.ingr_id == ingr_id).first()
             if ingredient:
-                db.add(Allergies(user_id=user_allergies.user_id, ingr_id=ingredient.ingr_id))
+                db.add(Allergy(user_id=user_allergies.user_id, ingr_id=ingr_id))
         
         db.commit()
         return {"message": "Allergies updated", "allergies": user_allergies}
@@ -271,99 +248,72 @@ def set_user_allergies(db: Session, user_allergies: UserAllergies):
         return {"error": str(e)}
 
 def get_user_recommendations(db: Session, user_id: str = None):
-    """Get recipe recommendations for a user
+    """Get recipe recommendations for a user"""
+    # Kullanıcının tercihlerini alalım
+    user_preferences = []
+    if user_id:
+        # Kullanıcı tercihlerini sorgulayalım
+        prefs_result = get_user_preferences(db, user_id)
+        if prefs_result:
+            user_preferences = prefs_result["preferences"]
     
-    This is a simple implementation. In a real system, you might use more complex algorithms
-    taking into account user preferences, allergies, past interactions, etc.
-    """
-    # For simplicity, return top 10 recipes
-    # In a real system, you would implement a proper recommendation algorithm
-    recipes = db.query(Recipe).limit(10).all()
+    # Kullanıcının alerjilerini alalım
+    user_allergies = []
+    if user_id:
+        # Kullanıcı alerjilerini sorgulayalım
+        allergies_result = get_user_allergies(db, user_id)
+        if allergies_result:
+            user_allergies = allergies_result["allergies"]
     
+    # Tarifleri sorgulayalım
+    q = db.query(Recipe)
+    
+    # Kullanıcı tercihleri varsa, bu tercihlere uygun tarifleri filtreleyelim
+    if user_preferences:
+        # Kullanıcının tercihlerine uygun tariflerin ID'lerini bulalım
+        recipe_ids = db.query(RecipeIngr.recipe_id).\
+            join(PrefRecipe, Recipe.recipe_id == PrefRecipe.recipe_id).\
+            filter(PrefRecipe.pref_id.in_(user_preferences)).\
+            distinct().all()
+        
+        recipe_ids = [r[0] for r in recipe_ids]
+        q = q.filter(Recipe.recipe_id.in_(recipe_ids))
+    
+    # Kullanıcının alerjileri varsa, bu alerjilere sahip tarifleri filtreleyelim
+    if user_allergies:
+        # Kullanıcının alerjileri olan malzemeleri içeren tariflerin ID'lerini bulalım
+        excluded_recipe_ids = db.query(RecipeIngr.recipe_id).\
+            filter(RecipeIngr.ingr_id.in_(user_allergies)).\
+            distinct().all()
+        
+        excluded_recipe_ids = [r[0] for r in excluded_recipe_ids]
+        if excluded_recipe_ids:
+            q = q.filter(~Recipe.recipe_id.in_(excluded_recipe_ids))
+    
+    # Tarifleri alalım (en fazla 10 tane)
+    recipes = q.limit(10).all()
+    
+    # Tariflerin detaylarını alalım
     result = []
     for recipe in recipes:
-        # Get the recipe category
-        category = db.query(Category).filter(Category.category_id == recipe.category).first()
-        
-        # Get the recipe ingredients
-        ingredients = db.query(RecipeIngr, Ingredient).\
-            join(Ingredient, RecipeIngr.ingr_id == Ingredient.ingr_id).\
-            filter(RecipeIngr.recipe_id == recipe.recipe_id).all()
-        
-        # Create recipe data
-        recipe_data = {
-            "recipe_id": recipe.recipe_id,
-            "recipe_name": recipe.recipe_name,
-            "instruction": recipe.instruction,
-            "total_time": recipe.total_time,
-            "calories": recipe.calories,
-            "fat": recipe.fat,
-            "protein": recipe.protein,
-            "carb": recipe.carb,
-            "category": category.cat_name if category else None,
-            "ingredients": [
-                {
-                    "name": ingredient.ingr_name,
-                    "quantity": recipe_ingr.quantity,
-                    "unit": recipe_ingr.unit
-                } for recipe_ingr, ingredient in ingredients
-            ]
-        }
-        
-        result.append(recipe_data)
+        recipe_data = get_recipe_details(db, recipe.recipe_id)
+        if recipe_data:
+            result.append(recipe_data)
     
     return result
 
 def get_recipes_by_query(db: Session, query_json: str, sort_field: str = None, sort_direction: str = None):
-    """Parse the JSON query string and query recipes"""
+    """Get recipes by a JSON query string"""
     try:
-        # Parse the JSON query
-        query_data = json.loads(query_json) if query_json else {}
-        
-        # Prepare sort data
-        sort_data = None
+        query_data = json.loads(query_json)
+        sort_data = {}
         if sort_field:
-            sort_data = {
-                "field": sort_field,
-                "direction": sort_direction or "asc"
-            }
+            sort_data["field"] = sort_field
+            if sort_direction:
+                sort_data["direction"] = sort_direction
         
-        # Use the existing query_recipes function
         return query_recipes(db, query_data, sort_data)
     except Exception as e:
         return {"error": str(e)}
 
-def get_user_ingredients(db: Session, user_id: str):
-    """Get ingredients for a specific user"""
-    # Get the user's ingredients from the user_ingredients table
-    user_ingredients = db.query(UserIngredient, Ingredient).\
-        join(Ingredient, UserIngredient.ingr_id == Ingredient.ingr_id).\
-        filter(UserIngredient.user_id == user_id).all()
-    
-    if not user_ingredients:
-        return {"user_id": user_id, "ingredients": []}
-    
-    # Convert to response format
-    return {
-        "user_id": user_id,
-        "ingredients": [ingredient.ingr_name for _, ingredient in user_ingredients]
-    }
-
-def set_user_ingredients(db: Session, user_ingredients: UserIngredients):
-    """Set or update user ingredients"""
-    try:
-        # First, remove existing ingredients for this user
-        db.query(UserIngredient).filter(UserIngredient.user_id == user_ingredients.user_id).delete()
-        
-        # Then add new ingredients
-        for ingredient_name in user_ingredients.ingredients:
-            # Find ingredient by name
-            ingredient = db.query(Ingredient).filter(Ingredient.ingr_name.ilike(f"%{ingredient_name}%")).first()
-            if ingredient:
-                db.add(UserIngredient(user_id=user_ingredients.user_id, ingr_id=ingredient.ingr_id))
-        
-        db.commit()
-        return {"message": "Ingredients updated", "ingredients": user_ingredients}
-    except Exception as e:
-        db.rollback()
-        return {"error": str(e)} 
+from app.models.models import PrefRecipe 

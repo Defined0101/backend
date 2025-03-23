@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Text
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Text, Date
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -8,21 +8,20 @@ class User(Base):
     user_id = Column(String, primary_key=True, index=True)
     user_name = Column(String, nullable=True)
     e_mail = Column(String, unique=True, index=True, nullable=True)
-    user_bday = Column(String, nullable=True)
+    user_bday = Column(Date, nullable=True)
     tel_no = Column(Integer, nullable=True)
     
     # İlişkiler
     user_prefs = relationship("UserPref", back_populates="user")
     saved_recipes = relationship("SavedRecipes", back_populates="user")
     liked_recipes = relationship("LikedRecipe", back_populates="user")
-    allergies = relationship("Allergies", back_populates="user")
-    ingredients = relationship("UserIngredient", back_populates="user")
+    allergies = relationship("Allergy", back_populates="user")
 
 class UserPref(Base):
     __tablename__ = "user_pref"
     
     user_id = Column(String, ForeignKey("users.user_id"), primary_key=True)
-    pref_id = Column(Integer, ForeignKey("preference.preference_id"), primary_key=True)
+    pref_id = Column(Integer, ForeignKey("preference.pref_id"), primary_key=True)
     
     # İlişkiler
     user = relationship("User", back_populates="user_prefs")
@@ -34,25 +33,24 @@ class Category(Base):
     category_id = Column(Integer, primary_key=True, index=True)
     cat_name = Column(String, nullable=True)
     
-    # İlişkiler
-    recipes = relationship("Recipe", back_populates="category_relation")
+    # Category ilişkisi recipe'de Foreign Key olarak belirtilmiş ama
+    # veritabanında kısıtlama (constraint) yok
 
 class Recipe(Base):
     __tablename__ = "recipe"
     
     recipe_id = Column(Integer, primary_key=True, index=True)
     recipe_name = Column(String, nullable=True)
-    instruction = Column(String, nullable=True)
-    ingredient = Column(String, nullable=True)  # Bu alan muhtemelen kullanılmıyor, recipe_ingr tablosu üzerinden ilişki var
+    instruction = Column(Text, nullable=True)
+    ingredient = Column(Text, nullable=True)  # Dokümanda bu alan text olarak belirtilmiş
     total_time = Column(Integer, nullable=True)
     calories = Column(Float, nullable=True)
     fat = Column(Float, nullable=True)
     protein = Column(Float, nullable=True)
     carb = Column(Float, nullable=True)
-    category = Column(Integer, ForeignKey("category.category_id"), nullable=True)
+    category = Column(Integer, nullable=True)  # FK constraint yok
     
     # İlişkiler
-    category_relation = relationship("Category", back_populates="recipes")
     recipe_ingredients = relationship("RecipeIngr", back_populates="recipe")
     saved_by = relationship("SavedRecipes", back_populates="recipe")
     liked_by = relationship("LikedRecipe", back_populates="recipe")
@@ -66,8 +64,7 @@ class Ingredient(Base):
     
     # İlişkiler
     recipe_ingredients = relationship("RecipeIngr", back_populates="ingredient")
-    allergies = relationship("Allergies", back_populates="ingredient")
-    user_ingredients = relationship("UserIngredient", back_populates="ingredient")
+    allergies = relationship("Allergy", back_populates="ingredient")
 
 class RecipeIngr(Base):
     __tablename__ = "recipe_ingr"
@@ -94,15 +91,15 @@ class SavedRecipes(Base):
 class LikedRecipe(Base):
     __tablename__ = "liked_recipes"
     
-    user_id = Column(String, ForeignKey("users.user_id"), primary_key=True)
     recipe_id = Column(Integer, ForeignKey("recipe.recipe_id"), primary_key=True)
+    user_id = Column(String, ForeignKey("users.user_id"), primary_key=True)
     
     # İlişkiler
     user = relationship("User", back_populates="liked_recipes")
     recipe = relationship("Recipe", back_populates="liked_by")
 
-class Allergies(Base):
-    __tablename__ = "allergies"
+class Allergy(Base):
+    __tablename__ = "allergy"
     
     user_id = Column(String, ForeignKey("users.user_id"), primary_key=True)
     ingr_id = Column(Integer, ForeignKey("ingredient.ingr_id"), primary_key=True)
@@ -111,21 +108,11 @@ class Allergies(Base):
     user = relationship("User", back_populates="allergies")
     ingredient = relationship("Ingredient", back_populates="allergies")
 
-class UserIngredient(Base):
-    __tablename__ = "user_ingredients"
-    
-    user_id = Column(String, ForeignKey("users.user_id"), primary_key=True)
-    ingr_id = Column(Integer, ForeignKey("ingredient.ingr_id"), primary_key=True)
-    
-    # İlişkiler
-    user = relationship("User", back_populates="ingredients")
-    ingredient = relationship("Ingredient", back_populates="user_ingredients")
-
 class Preference(Base):
     __tablename__ = "preference"
     
-    preference_id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=True)
+    pref_id = Column(Integer, primary_key=True, index=True)
+    pref_name = Column(String, nullable=True)
     
     # İlişkiler
     pref_recipes = relationship("PrefRecipe", back_populates="preference")
@@ -135,7 +122,7 @@ class PrefRecipe(Base):
     __tablename__ = "pref_recipe"
     
     recipe_id = Column(Integer, ForeignKey("recipe.recipe_id"), primary_key=True)
-    pref_id = Column(Integer, ForeignKey("preference.preference_id"), primary_key=True)
+    pref_id = Column(Integer, ForeignKey("preference.pref_id"), primary_key=True)
     
     # İlişkiler
     preference = relationship("Preference", back_populates="pref_recipes")

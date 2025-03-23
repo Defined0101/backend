@@ -10,19 +10,15 @@ class RecipeCard(BaseModel):
 
 class UserPreferences(BaseModel):
     user_id: str
-    dairy_free: bool
-    gluten_free: bool
-    pescetarian: bool
-    vegan: bool
-    vejetaryen: bool
+    preferences: List[int]  # pref_id listesi
 
 class UserAllergies(BaseModel):
     user_id: str
-    allergies: List[str]
+    allergies: List[int]  # ingr_id listesi
 
 class UserIngredients(BaseModel):
     user_id: str
-    ingredients: List[str]
+    ingredients: List[int]  # ingr_id listesi
 
 class GetQueryRequest(BaseModel):
     query: str  # JSON-encoded query
@@ -34,26 +30,29 @@ class RecipeQuery(BaseModel):
 
 class CategoryResponse(BaseModel):
     category_id: int
-    category_name: str
+    cat_name: str
 
     class Config:
         from_attributes = True
 
 class PreferenceResponse(BaseModel):
-    preference_id: int
-    name: str
+    pref_id: int
+    pref_name: str
 
     class Config:
         from_attributes = True
 
 class RecipeResponse(BaseModel):
     recipe_id: int
-    name: str
-    calories: Optional[int] = None
+    recipe_name: str
+    calories: Optional[float] = None
     total_time: Optional[int] = None
-    description: Optional[str] = None
-    steps: Optional[str] = None
-    category_id: Optional[int] = None
+    instruction: Optional[str] = None
+    ingredient: Optional[str] = None
+    category: Optional[int] = None
+    fat: Optional[float] = None
+    protein: Optional[float] = None
+    carb: Optional[float] = None
 
     class Config:
         from_attributes = True 
