@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import api_router
+from app.api.api import api_router
 
 app = FastAPI(
     title="FRS API",
@@ -18,7 +18,7 @@ app.add_middleware(
 )
 
 # API router'ı ekle
-app.include_router(api_router, prefix="/api/v1")
+app.include_router(api_router)
 
 @app.get("/")
 async def root():

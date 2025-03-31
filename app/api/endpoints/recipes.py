@@ -12,26 +12,40 @@ router = APIRouter()  # tags router'da değil, include_router'da belirtilecek
     response_model=Recipe,
     summary="Get Recipe Details",
     description="""
-    Retrieves detailed information about a specific recipe.
+    Retrieves complete details of a specific recipe.
     
     Parameters:
-    - **recipe_id**: ID of the recipe to retrieve
+    - **recipe_id**: ID of the recipe
     
-    Returns all available information about the recipe including:
+    Returns:
     - Recipe name
-    - Instructions
-    - Ingredients
-    - Nutritional information (calories, fat, protein, carbs)
-    - Total cooking time
+    - Full instructions
+    - List of ingredients
+    - Cooking time
+    - Nutritional information
     - Category
     
     Example:
     ```
     GET /api/v1/getRecipeDetails?recipe_id=1
+    
+    Response:
+    {
+        "recipe_id": 1,
+        "recipe_name": "Spaghetti Carbonara",
+        "instruction": "1. Boil pasta...",
+        "ingredient": "spaghetti, eggs, pecorino...",
+        "total_time": 30,
+        "calories": 650.5,
+        "fat": 24.3,
+        "protein": 25.1,
+        "carb": 82.4,
+        "category": 1
+    }
     ```
     """)
 def get_recipe_details(
-    recipe_id: int = Query(..., description="The ID of the recipe to retrieve", example=1),
+    recipe_id: int = Query(..., description="Recipe ID", example=1),
     db: Session = Depends(get_db)
 ):
     """
@@ -43,7 +57,7 @@ def get_recipe_details(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@router.get("/getRecipeCard", 
+@router.get("/getRecipeCard",
     response_model=Dict[str, Any],
     summary="Get Recipe Card",
     description="""
@@ -51,12 +65,12 @@ def get_recipe_details(
     
     Parameters:
     - **recipe_id**: ID of the recipe
-    - **fields**: Comma-separated list of fields to include in the response
+    - **fields**: Comma-separated list of desired fields
     
     Available fields:
     - recipe_name: Name of the recipe
     - instruction: Cooking instructions
-    - total_time: Total cooking time in minutes
+    - total_time: Cooking time in minutes
     - calories: Caloric content
     - fat: Fat content
     - protein: Protein content
@@ -66,24 +80,30 @@ def get_recipe_details(
     
     Examples:
     ```
-    # Get only recipe name
-    GET /api/v1/getRecipeCard?recipe_id=1&fields=recipe_name
+    # Basic information
+    GET /api/v1/getRecipeCard?recipe_id=1&fields=recipe_name,total_time
     
-    # Get multiple fields
-    GET /api/v1/getRecipeCard?recipe_id=1&fields=recipe_name,total_time,calories
+    Response:
+    {
+        "recipe_name": "Spaghetti Carbonara",
+        "total_time": 30
+    }
     
-    # Get recipe with ingredients
-    GET /api/v1/getRecipeCard?recipe_id=1&fields=recipe_name,ingredients
+    # Nutritional information
+    GET /api/v1/getRecipeCard?recipe_id=1&fields=recipe_name,calories,fat,protein,carb
+    
+    # Full recipe card
+    GET /api/v1/getRecipeCard?recipe_id=1&fields=recipe_name,ingredients,instruction,total_time
     ```
     """)
 def get_recipe_card(
-    recipe_id: int = Query(..., description="The ID of the recipe to retrieve", example=1),
+    recipe_id: int = Query(..., description="Recipe ID", example=1),
     fields: str = Query(..., 
-        description="Comma-separated list of fields to include", 
+        description="Comma-separated list of fields",
         example="recipe_name,total_time,calories",
         examples={
             "basic": {
-                "summary": "Basic recipe information",
+                "summary": "Basic information",
                 "value": "recipe_name,total_time"
             },
             "nutrition": {
@@ -91,7 +111,7 @@ def get_recipe_card(
                 "value": "recipe_name,calories,fat,protein,carb"
             },
             "full": {
-                "summary": "Full recipe card with ingredients",
+                "summary": "Full recipe card",
                 "value": "recipe_name,ingredients,instruction,total_time"
             }
         }
