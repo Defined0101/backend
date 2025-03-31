@@ -5,9 +5,7 @@ from app.core.config import settings
 
 # Create database URL based on environment
 def get_database_url():
-    if settings.DB_HOST == "db":  # Docker environment
-        return f"postgresql://{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
-    return settings.DATABASE_URL  # Production environment
+    return f"postgresql://postgres:DefinedAtTheDisco01*@frs-db.ch88c4s48jz3.eu-north-1.rds.amazonaws.com:5432/FRS"
 
 # Create database engine
 engine = create_engine(get_database_url())
