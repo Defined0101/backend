@@ -168,14 +168,6 @@ The API implements comprehensive error handling with appropriate HTTP status cod
 ## Future Enhancements
 
 - Firebase Authentication integration
-- Enhanced recipe recommendation algorithms
-- User activity tracking
-- Social features (sharing recipes, following users)
-- Mobile application integration
-- Real-time notifications
-- Recipe rating and review system
-- Advanced search filters
-- Recipe collections and meal planning
 
 ## Contributing
 
