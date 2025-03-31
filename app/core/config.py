@@ -24,9 +24,6 @@ class Settings(BaseSettings):
     # Other configuration
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
     
-    # Firebase
-    FIREBASE_CREDENTIALS_PATH: str = "firebase-credentials.json"
-    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

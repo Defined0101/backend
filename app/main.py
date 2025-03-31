@@ -22,4 +22,16 @@ app.include_router(api_router)
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to FRS API"} 
+    return {"message": "Welcome to FRS API"}
+
+@app.get("/health", tags=["Health Check"])
+async def health_check():
+    """
+    Health check endpoint for monitoring system status.
+    Used by Docker healthcheck and monitoring systems.
+    """
+    return {
+        "status": "healthy",
+        "service": "FRS API",
+        "version": "1.0.0"
+    } 

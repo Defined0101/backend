@@ -2,16 +2,43 @@ version: '3.8'
 
 services:
   backend:
-    build: .
+    build: 
+      context: .
+      target: builder  # Use the builder stage for development
     ports:
       - "8000:8000"
     environment:
       - DATABASE_URL=${DATABASE_URL}
-      - FIREBASE_CREDENTIALS_PATH=${FIREBASE_CREDENTIALS_PATH}
     volumes:
       - .:/app
     networks:
       - frs_network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  backend-prod:
+    build: .  # Uses the final stage by default
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - frs_network
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
 
 volumes:
   postgres_data:
