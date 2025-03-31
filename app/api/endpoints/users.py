@@ -6,9 +6,9 @@ from app.models.models import User
 from app.schemas.user_schema import UserCreate, UserUpdate, UserResponse
 from app.services import user_service
 
-router = APIRouter()
+router = APIRouter(tags=["users"])
 
-@router.get("/users", response_model=List[UserResponse])
+@router.get("/", response_model=List[UserResponse])
 async def get_all_users(
     skip: int = 0,
     limit: int = 100,
@@ -19,7 +19,7 @@ async def get_all_users(
     """
     return user_service.get_users(db, skip=skip, limit=limit)
 
-@router.get("/users/{user_id}", response_model=UserResponse)
+@router.get("/{user_id}", response_model=UserResponse)
 async def get_user(
     user_id: str,
     db: Session = Depends(get_db)
@@ -32,7 +32,7 @@ async def get_user(
         raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
     return user
 
-@router.post("/users", response_model=UserResponse)
+@router.post("/", response_model=UserResponse)
 async def create_user(
     user_data: UserCreate,
     db: Session = Depends(get_db)
@@ -42,7 +42,7 @@ async def create_user(
     """
     return user_service.create_user(db, user_data)
 
-@router.put("/users/{user_id}", response_model=UserResponse)
+@router.put("/{user_id}", response_model=UserResponse)
 async def update_user(
     user_id: str,
     user_update: UserUpdate,
@@ -56,7 +56,7 @@ async def update_user(
         raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
     return user_service.update_user(db, user_id, user_update)
 
-@router.delete("/users/{user_id}")
+@router.delete("/{user_id}")
 async def delete_user(
     user_id: str,
     db: Session = Depends(get_db)
@@ -68,4 +68,4 @@ async def delete_user(
     if not user:
         raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
     user_service.delete_user(db, user_id)
-    return {"message": "Kullanıcı başarıyla silindi"} 
+    return {"message": "Kullanıcı başarıyla silindi"}

@@ -7,7 +7,7 @@ from app.services import ingredient_service, preference_service
 from app.models.models import User
 from app.schemas.preference_schema import UserPreferences
 
-router = APIRouter()
+router = APIRouter(tags=["ingredients"])
 
 @router.get("/getIngredients", response_model=List[str])
 async def get_ingredients(
@@ -126,4 +126,4 @@ async def set_user_preferences(
     """
     Kullanıcının tercihlerini güncelle
     """
-    return preference_service.set_user_preferences(db, preferences) 
+    return preference_service.set_user_preferences(db, preferences)
