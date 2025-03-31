@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
 from typing import List, Dict
 from app.core.database import get_db
-from app.schemas.ingredient import UserIngredients, IngredientResponse, UserAllergies, InventoryItem
+from app.schemas.ingredient_schema import UserIngredients, IngredientResponse, UserAllergies, InventoryItem
 from app.services import ingredient_service, preference_service
 from app.models.models import User
 from app.schemas.preference_schema import UserPreferences

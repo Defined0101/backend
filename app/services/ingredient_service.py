@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, String
 from app.models.models import Ingredient, Allergy, User, Inventory
 from typing import List, Optional, Text
-from app.schemas.ingredient import IngredientCreate, UserIngredients, IngredientResponse, UserAllergies
+from app.schemas.ingredient_schema import IngredientCreate, UserIngredients, IngredientResponse, UserAllergies
 
 def get_ingredient_names(db: Session) -> List[str]:
     """Tüm malzeme isimlerini getir"""
