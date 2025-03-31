@@ -3,10 +3,33 @@ from sqlalchemy.orm import Session
 from typing import Dict, List, Any, Union
 
 from app.core.database import get_db
-from app.services import recipe_service
+from app.services import recipe_service, preference_service
 from app.schemas.recipe_schema import Recipe, RecipeCard
 
 router = APIRouter()  # tags router'da değil, include_router'da belirtilecek
+
+@router.get("/getCategories",
+    response_model=List[str],
+    summary="Get Recipe Categories",
+    description="""
+    Retrieves all available recipe categories.
+    
+    Example:
+    ```
+    GET /api/v1/getCategories
+    
+    Response:
+    [
+        "Main Course",
+        "Dessert",
+        "Appetizer",
+        ...
+    ]
+    ```
+    """)
+async def get_categories(db: Session = Depends(get_db)):
+    """Tüm yemek kategorilerini getir"""
+    return preference_service.get_categories(db)
 
 @router.get("/getRecipeDetails", 
     response_model=Recipe,

@@ -202,28 +202,6 @@ async def set_user_allergies(
     updated_allergies = ingredient_service.set_user_allergies(db, allergies)
     return UserAllergies(user_id=allergies.user_id, allergies=updated_allergies)
 
-@router.get("/getCategories",
-    response_model=List[str],
-    summary="Get Recipe Categories",
-    description="""
-    Retrieves all available recipe categories.
-    
-    Example:
-    ```
-    GET /api/v1/getCategories
-    
-    Response:
-    [
-        "Main Course",
-        "Dessert",
-        "Appetizer",
-        ...
-    ]
-    ```
-    """)
-async def get_categories(db: Session = Depends(get_db)):
-    return ingredient_service.get_categories(db)
-
 @router.get("/getPreferences",
     response_model=List[str],
     summary="Get Available Preferences",
