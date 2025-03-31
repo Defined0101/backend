@@ -4,21 +4,47 @@ This repository contains the backend implementation of a Food Recommendation Sys
 
 ## Features
 
-- Comprehensive recipe details retrieval
-- Customizable recipe card information
-- Category and label management
-- User preference tracking and personalization
-- Advanced recipe search and filtering capabilities
-- Ingredient-based recipe recommendations
-- Nutritional information tracking
+- Basic user management and authentication
+- Comprehensive recipe details and recommendations
+- Ingredient and allergy management
+- User preferences and dietary restrictions
+- Advanced recipe search and filtering
+- Personalized recipe recommendations
 
 ## Technology Stack
 
 - **Framework**: FastAPI
 - **Database**: PostgreSQL (Amazon RDS)
 - **ORM**: SQLAlchemy
-- **Validation**: Pydantic
 - **Documentation**: Swagger/OpenAPI
+
+## Project Structure
+
+```
+app/
+├── api/
+│   ├── endpoints/
+│   │   ├── ingredients.py
+│   │   ├── recipes.py
+│   │   └── users.py
+│   └── api.py
+├── core/
+│   ├── config.py
+│   └── database.py
+├── models/
+│   └── models.py
+├── schemas/
+│   ├── ingredient_schema.py
+│   ├── preference_schema.py
+│   ├── recipe_schema.py
+│   └── user_schema.py
+├── services/
+│   ├── ingredient_service.py
+│   ├── preference_service.py
+│   ├── recipe_service.py
+│   └── user_service.py
+└── main.py
+```
 
 ## Installation
 
@@ -43,7 +69,7 @@ pip install -r requirements.txt
 
 4. Configure environment variables:
 Create a `.env` file in the root directory with the following variables:
-```
+```env
 DATABASE_URL=postgresql://username:password@host:port/dbname
 ```
 
@@ -54,123 +80,41 @@ uvicorn app.main:app --reload
 
 ## API Documentation
 
-### Interactive Documentation
-
-The API comes with built-in interactive documentation:
+The API documentation is available through Swagger UI at:
 ```
 http://localhost:8000/docs
 ```
 
-### Endpoints
+### API Endpoints
 
-#### Recipe Management
-
-**Get Recipe Details**
-```
-GET /getRecipeDetails/{recipe_id}
-```
-Returns comprehensive information about a specific recipe, including ingredients, nutritional values, and preparation instructions.
-
-**Get Recipe Card**
-```
-GET /getRecipeCard/{recipe_id}?fields=recipe_name&fields=calories&fields=total_time&fields=ingredients
-```
-Returns specific fields of a recipe for displaying in a card format. Fields can be customized through query parameters.
-
-#### Category and Label Management
-
-**Get All Categories**
-```
-GET /getCategories
-```
-Returns all available recipe categories.
-
-**Get All Labels**
-```
-GET /getLabels
-```
-Returns all available dietary preference labels (vegan, gluten-free, etc.).
-
-#### User Preference Management
-
-**Get User Preferences**
-```
-GET /getUserPreferences/{user_id}
-```
-Returns the dietary preferences for a specific user.
-
-**Set User Preferences**
-```
-POST /setUserPreferences
-Content-Type: application/json
-
-{
-  "user_id": "user123",
-  "dairy_free": true,
-  "gluten_free": false,
-  "pescetarian": false,
-  "vegan": false,
-  "vegetarian": true
-}
-```
-Updates a user's dietary preferences.
-
-#### Recipe Search and Filtering
-
-**Query Recipes**
-```
-POST /query
-Content-Type: application/json
-
-{
-  "query": {
-    "name": "chicken",
-    "ingredient": ["garlic", "onion"]
-  },
-  "sortBy": {
-    "field": "recipe_name",
-    "direction": "asc"
-  }
-}
-```
-Searches for recipes based on name and ingredients, with sorting options.
-
-## API Endpoints
-
-### Users
+#### User Management
 - `GET /api/v1/users` - Get all users
 - `POST /api/v1/users` - Create a new user
 - `GET /api/v1/users/{user_id}` - Get user by ID
 - `PUT /api/v1/users/{user_id}` - Update user
 - `DELETE /api/v1/users/{user_id}` - Delete user
 
-### Ingredients & Preferences
-- `GET /api/v1/getIngredients` - Get all ingredients
+#### Recipe Management
+- `GET /api/v1/getRecipeDetails/{recipe_id}` - Get detailed recipe information
+- `GET /api/v1/getRecipeCard/{recipe_id}` - Get recipe card with specified fields
+
+#### Ingredient Management
+- `GET /api/v1/getIngredients` - Get all available ingredients
 - `GET /api/v1/getUserIngredients` - Get user's ingredients
-- `POST /api/v1/setUserIngredients` - Set user's ingredients
-- `GET /api/v1/getAllergies` - Get all allergies
+- `POST /api/v1/setUserIngredients` - Update user's ingredients
+
+#### Allergy Management
+- `GET /api/v1/getAllergies` - Get all possible allergies
 - `GET /api/v1/getUserAllergies` - Get user's allergies
-- `POST /api/v1/setUserAllergies` - Set user's allergies
-- `GET /api/v1/getCategories` - Get all categories
-- `GET /api/v1/getPreferences` - Get all preferences
+- `POST /api/v1/setUserAllergies` - Update user's allergies
+
+#### Preferences & Categories
+- `GET /api/v1/getCategories` - Get all recipe categories
+- `GET /api/v1/getPreferences` - Get all dietary preferences
 - `GET /api/v1/getUserPreferences` - Get user's preferences
-- `POST /api/v1/setUserPreferences` - Set user's preferences
+- `POST /api/v1/setUserPreferences` - Update user's preferences
 
 ## Database Schema
-
-The system utilizes a relational database with the following key tables:
-
-- **users**: User account information
-- **recipe**: Recipe details including nutritional information
-- **ingredient**: Ingredient information
-- **recipe_ingr**: Many-to-many relationship between recipes and ingredients
-- **category**: Recipe categories
-- **preference**: Dietary preference options
-- **user_pref**: User-preference relationships
-- **saved_recipes**: User-saved recipes
-- **liked_recipes**: User-liked recipes
-- **allergies**: User-ingredient allergies
-- **pref_recipe**: Preference-recipe relationships
 
 ### Users Table
 - `user_id` (text, primary key)
@@ -185,7 +129,7 @@ The system utilizes a relational database with the following key tables:
 
 ### Inventory Table
 - `user_id` (text, foreign key)
-- `ingr_id` (text)
+- `ingr_id` (integer)
 - `quantity` (numeric)
 
 ### Allergy Table
@@ -206,21 +150,40 @@ The system utilizes a relational database with the following key tables:
 
 ## Error Handling
 
-The API implements comprehensive error handling with appropriate HTTP status codes and descriptive error messages to facilitate debugging and provide a better developer experience.
+The API implements comprehensive error handling with appropriate HTTP status codes:
 
-## Security
+- `400 Bad Request` - Invalid request payload
+- `401 Unauthorized` - Missing or invalid authentication
+- `403 Forbidden` - Insufficient permissions
+- `404 Not Found` - Resource not found
+- `500 Internal Server Error` - Server-side errors
+
+## Security Features
 
 - Input validation using Pydantic models
-- Database query parameterization to prevent SQL injection
+- Database query parameterization
 - CORS middleware configuration
+- Environment variable configuration
 
 ## Future Enhancements
 
-- Authentication and authorization
-- Recipe recommendation algorithm improvements
+- Firebase Authentication integration
+- Enhanced recipe recommendation algorithms
 - User activity tracking
 - Social features (sharing recipes, following users)
 - Mobile application integration
+- Real-time notifications
+- Recipe rating and review system
+- Advanced search filters
+- Recipe collections and meal planning
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
