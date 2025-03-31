@@ -78,6 +78,82 @@ DATABASE_URL=postgresql://username:password@host:port/dbname
 uvicorn app.main:app --reload
 ```
 
+## Docker Kurulumu ve Kullanımı
+
+### Geliştirme Ortamı
+
+Development ortamında çalıştırmak için:
+
+```bash
+docker compose up backend
+```
+
+Bu komut:
+- Hot-reload özelliği ile çalışır
+- Port 8000'de hizmet verir
+- Debug modu aktiftir
+- Kod değişikliklerini anında yansıtır
+
+### Production Ortamı
+
+Production ortamında çalıştırmak için:
+
+```bash
+docker compose up backend-prod
+```
+
+Bu komut:
+- Optimize edilmiş production build kullanır
+- Port 8001'de hizmet verir
+- Debug modu kapalıdır
+- Daha güvenli ve performanslı çalışır
+
+### Diğer Faydalı Docker Komutları
+
+Containerları durdurmak için:
+```bash
+docker compose down
+```
+
+Logları görüntülemek için:
+```bash
+docker compose logs -f
+```
+
+Containerları yeniden başlatmak için:
+```bash
+docker compose restart
+```
+
+Değişikliklerle birlikte yeniden build etmek için:
+```bash
+docker compose up --build
+```
+
+### Environment Variables
+
+Sistem aşağıdaki environment variable'ları kullanır:
+
+```env
+DATABASE_URL=postgresql://user:password@host:port/dbname
+QDRANT_HOST=qdrant
+QDRANT_PORT=6333
+DEBUG=False
+```
+
+### API Endpoints
+
+Development: http://localhost:8000
+Production: http://localhost:8001
+
+Health check endpoints:
+- Development: http://localhost:8000/health
+- Production: http://localhost:8001/health
+
+API Documentation:
+- Development: http://localhost:8000/docs
+- Production: http://localhost:8001/docs
+
 ## API Documentation
 
 The API documentation is available through Swagger UI at:
