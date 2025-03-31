@@ -135,6 +135,27 @@ Content-Type: application/json
 ```
 Searches for recipes based on name and ingredients, with sorting options.
 
+## API Endpoints
+
+### Users
+- `GET /api/v1/users` - Get all users
+- `POST /api/v1/users` - Create a new user
+- `GET /api/v1/users/{user_id}` - Get user by ID
+- `PUT /api/v1/users/{user_id}` - Update user
+- `DELETE /api/v1/users/{user_id}` - Delete user
+
+### Ingredients & Preferences
+- `GET /api/v1/getIngredients` - Get all ingredients
+- `GET /api/v1/getUserIngredients` - Get user's ingredients
+- `POST /api/v1/setUserIngredients` - Set user's ingredients
+- `GET /api/v1/getAllergies` - Get all allergies
+- `GET /api/v1/getUserAllergies` - Get user's allergies
+- `POST /api/v1/setUserAllergies` - Set user's allergies
+- `GET /api/v1/getCategories` - Get all categories
+- `GET /api/v1/getPreferences` - Get all preferences
+- `GET /api/v1/getUserPreferences` - Get user's preferences
+- `POST /api/v1/setUserPreferences` - Set user's preferences
+
 ## Database Schema
 
 The system utilizes a relational database with the following key tables:
@@ -150,6 +171,38 @@ The system utilizes a relational database with the following key tables:
 - **liked_recipes**: User-liked recipes
 - **allergies**: User-ingredient allergies
 - **pref_recipe**: Preference-recipe relationships
+
+### Users Table
+- `user_id` (text, primary key)
+- `e_mail` (text)
+- `user_name` (text)
+- `user_bday` (date)
+- `tel_no` (bigint)
+
+### Ingredient Table
+- `ingr_id` (integer, primary key)
+- `ingr_name` (text)
+
+### Inventory Table
+- `user_id` (text, foreign key)
+- `ingr_id` (text)
+- `quantity` (numeric)
+
+### Allergy Table
+- `user_id` (text, foreign key)
+- `ingr_id` (integer, foreign key)
+
+### Category Table
+- `category_id` (integer, primary key)
+- `cat_name` (text)
+
+### Preference Table
+- `pref_id` (integer, primary key)
+- `pref_name` (text)
+
+### User Preferences Table
+- `user_id` (text, foreign key)
+- `pref_id` (integer, foreign key)
 
 ## Error Handling
 
