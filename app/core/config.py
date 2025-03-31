@@ -1,6 +1,7 @@
 import os
 from pydantic_settings import BaseSettings
 from typing import Optional
+from pathlib import Path
 
 class Settings(BaseSettings):
     # Database configuration
@@ -22,6 +23,9 @@ class Settings(BaseSettings):
     
     # Other configuration
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
+    
+    # Firebase
+    FIREBASE_CREDENTIALS_PATH: str = "firebase-credentials.json"
     
     class Config:
         env_file = ".env"

@@ -1,0 +1,275 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Calibri;}}
+\pard\sa200\sl276\slmult1\qc\b FRS VERİTABANI ŞEMASI DOKÜMANTASYONU\b0\par
+\pard\sa200\sl276\slmult1
+
+\b 1. Genel Bilgiler\b0\par
+- Veritabanı Adı: FRS\par
+- Şema (Schema): public\par
+- Veritabanı Sahibi (Owner): postgres\par
+- Dump Edilen PostgreSQL Sürümü: 16.3\par
+- Dump İşlemi Yapan pg_dump Sürümü: 17.0\par
+\par
+Bu veritabanı, FRS isimli bir veritabanını oluşturuyor ve public şeması altında tablolar, sekanslar ve ilişki kısıtlamalarını (constraint) içeriyor.\par
+
+\b 2. Tablolar ve Yapıları\b0\par
+Aşağıdaki tabloların her birinde sütun (column) bilgileri, birincil anahtar (PRIMARY KEY) ve yabancı anahtar (FOREIGN KEY) kısıtlamaları listelenmiştir.\par
+
+\b 2.1. allergy\b0\par
+{\pard\li720\sa200\sl276\slmult1
+\cf1 CREATE TABLE public.allergy (
+    user_id text NOT NULL,
+    ingr_id integer NOT NULL
+);\par
+ALTER TABLE public.allergy
+    ADD CONSTRAINT allergy_pkey PRIMARY KEY (user_id, ingr_id);\par
+ALTER TABLE public.allergy
+    ADD CONSTRAINT allergy_ingr_id_fkey FOREIGN KEY (ingr_id) REFERENCES public.ingredient(ingr_id);\par
+ALTER TABLE public.allergy
+    ADD CONSTRAINT allergy_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id);\cf0\par
+}
+- Amaç: Bir kullanıcının (user_id) hangi malzemeye (ingr_id) alerjisi olduğunu tutar.\par
+- Sütunlar:\par
+  - user_id (text): Kullanıcı kimliği (FK)\par
+  - ingr_id (integer): Malzeme kimliği (FK)\par
+- PK: (user_id, ingr_id)\par
+- FK:\par
+  - (user_id) → users(user_id)\par
+  - (ingr_id) → ingredient(ingr_id)\par
+
+\b 2.2. category\b0\par
+{\pard\li720\sa200\sl276\slmult1
+\cf1 CREATE TABLE public.category (
+    category_id integer NOT NULL,
+    cat_name text
+);\par
+ALTER TABLE public.category
+    ADD CONSTRAINT category_pkey PRIMARY KEY (category_id);\cf0\par
+}
+- Amaç: Tarif (yemek) kategorilerini tutar (ör. “vegan”, “dessert” vb.).\par
+- Sütunlar:\par
+  - category_id (integer): Kategori kimliği (PK)\par
+  - cat_name (text): Kategori adı\par
+- PK: category_id\par
+- Not: recipe tablosunda “category” sütunu olsa da burada bir FOREIGN KEY tanımı yok.\par
+
+\b 2.3. ingredient\b0\par
+{\pard\li720\sa200\sl276\slmult1
+\cf1 CREATE TABLE public.ingredient (
+    ingr_id integer NOT NULL,
+    ingr_name text
+);\par
+CREATE SEQUENCE public.ingredient_ingr_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;\par
+ALTER TABLE ONLY public.ingredient
+    ALTER COLUMN ingr_id SET DEFAULT nextval('public.ingredient_ingr_id_seq'::regclass);\par
+ALTER TABLE public.ingredient
+    ADD CONSTRAINT ingredient_pkey PRIMARY KEY (ingr_id);\cf0\par
+}
+- Amaç: Tariflerde kullanılan malzemeleri saklar.\par
+- Sütunlar:\par
+  - ingr_id (integer): Malzeme kimliği (PK, otomatik artış)\par
+  - ingr_name (text): Malzeme adı\par
+- PK: ingr_id\par
+- Sequence: ingredient_ingr_id_seq\par
+
+\b 2.4. liked_recipes\b0\par
+{\pard\li720\sa200\sl276\slmult1
+\cf1 CREATE TABLE public.liked_recipes (
+    recipe_id integer NOT NULL,
+    user_id text NOT NULL
+);\par
+ALTER TABLE public.liked_recipes
+    ADD CONSTRAINT liked_recipes_pkey PRIMARY KEY (recipe_id, user_id);\par
+ALTER TABLE public.liked_recipes
+    ADD CONSTRAINT liked_recipes_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipe(recipe_id);\par
+ALTER TABLE public.liked_recipes
+    ADD CONSTRAINT liked_recipes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id);\cf0\par
+}
+- Amaç: Kullanıcıların (user_id) beğendiği tarifleri (recipe_id) tutar.\par
+- Sütunlar:\par
+  - recipe_id (integer): Tarif kimliği (FK)\par
+  - user_id (text): Kullanıcı kimliği (FK)\par
+- PK: (recipe_id, user_id)\par
+- FK:\par
+  - (recipe_id) → recipe(recipe_id)\par
+  - (user_id) → users(user_id)\par
+
+\b 2.5. pref_recipe\b0\par
+{\pard\li720\sa200\sl276\slmult1
+\cf1 CREATE TABLE public.pref_recipe (
+    recipe_id integer NOT NULL,
+    pref_id integer NOT NULL
+);\par
+ALTER TABLE public.pref_recipe
+    ADD CONSTRAINT pref_recipe_pkey PRIMARY KEY (recipe_id, pref_id);\par
+ALTER TABLE public.pref_recipe
+    ADD CONSTRAINT pref_recipe_pref_id_fkey FOREIGN KEY (pref_id) REFERENCES public.preference(pref_id);\par
+ALTER TABLE public.pref_recipe
+    ADD CONSTRAINT pref_recipe_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipe(recipe_id);\cf0\par
+}
+- Amaç: Bir tarifin (recipe_id) hangi “preference” (pref_id) ile ilişkili olduğunu tutar.\par
+- Sütunlar:\par
+  - recipe_id (integer): Tarif kimliği (FK)\par
+  - pref_id (integer): Tercih kimliği (FK)\par
+- PK: (recipe_id, pref_id)\par
+- FK:\par
+  - (recipe_id) → recipe(recipe_id)\par
+  - (pref_id) → preference(pref_id)\par
+
+\b 2.6. preference\b0\par
+{\pard\li720\sa200\sl276\slmult1
+\cf1 CREATE TABLE public.preference (
+    pref_id integer NOT NULL,
+    pref_name text
+);\par
+ALTER TABLE public.preference
+    ADD CONSTRAINT preference_pkey PRIMARY KEY (pref_id);\cf0\par
+}
+- Amaç: Kullanıcı veya tarif tercihlerinin listesini tutar (örn. “vegan”, “gluten-free”).\par
+- Sütunlar:\par
+  - pref_id (integer): Tercih kimliği (PK)\par
+  - pref_name (text): Tercih adı\par
+- PK: pref_id\par
+
+\b 2.7. recipe\b0\par
+{\pard\li720\sa200\sl276\slmult1
+\cf1 CREATE TABLE public.recipe (
+    recipe_id integer NOT NULL,
+    recipe_name text,
+    instruction text,
+    ingredient text,
+    total_time integer,
+    calories double precision,
+    fat double precision,
+    protein double precision,
+    carb double precision,
+    category integer
+);\par
+ALTER TABLE public.recipe
+    ADD CONSTRAINT recipe_pkey PRIMARY KEY (recipe_id);\cf0\par
+}
+- Amaç: Tarif (yemek) bilgilerini saklar.\par
+- Sütunlar:\par
+  - recipe_id (integer): Tarif kimliği (PK)\par
+  - recipe_name (text): Tarif adı\par
+  - instruction (text): Hazırlama talimatları\par
+  - ingredient (text): Metinsel malzeme bilgisi\par
+  - total_time (integer): Tarifin toplam süresi\par
+  - calories (double precision): Kalori miktarı\par
+  - fat (double precision): Yağ miktarı\par
+  - protein (double precision): Protein miktarı\par
+  - carb (double precision): Karbonhidrat miktarı\par
+  - category (integer): Kategori kimliği (FK tanımlanmamış)\par
+- PK: recipe_id\par
+
+\b 2.8. recipe_ingr\b0\par
+{\pard\li720\sa200\sl276\slmult1
+\cf1 CREATE TABLE public.recipe_ingr (
+    recipe_id integer NOT NULL,
+    ingr_id integer NOT NULL,
+    quantity double precision,
+    unit text
+);\par
+ALTER TABLE public.recipe_ingr
+    ADD CONSTRAINT recipe_ingr_pkey PRIMARY KEY (recipe_id, ingr_id);\par
+ALTER TABLE public.recipe_ingr
+    ADD CONSTRAINT recipe_ingr_ingr_id_fkey FOREIGN KEY (ingr_id) REFERENCES public.ingredient(ingr_id);\par
+ALTER TABLE public.recipe_ingr
+    ADD CONSTRAINT recipe_ingr_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipe(recipe_id);\cf0\par
+}
+- Amaç: Tariflerde (recipe_id) kullanılan malzemelerin (ingr_id) miktar ve birim bilgilerini tutar.\par
+- Sütunlar:\par
+  - recipe_id (integer): Tarif kimliği (FK)\par
+  - ingr_id (integer): Malzeme kimliği (FK)\par
+  - quantity (double precision): Kullanılan miktar\par
+  - unit (text): Miktar birimi\par
+- PK: (recipe_id, ingr_id)\par
+- FK:\par
+  - (recipe_id) → recipe(recipe_id)\par
+  - (ingr_id) → ingredient(ingr_id)\par
+
+\b 2.9. saved_recipes\b0\par
+{\pard\li720\sa200\sl276\slmult1
+\cf1 CREATE TABLE public.saved_recipes (
+    recipe_id integer NOT NULL,
+    user_id text NOT NULL
+);\par
+ALTER TABLE public.saved_recipes
+    ADD CONSTRAINT saved_recipes_pkey PRIMARY KEY (recipe_id, user_id);\par
+ALTER TABLE public.saved_recipes
+    ADD CONSTRAINT saved_recipes_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipe(recipe_id);\par
+ALTER TABLE public.saved_recipes
+    ADD CONSTRAINT saved_recipes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id);\cf0\par
+}
+- Amaç: Kullanıcıların (user_id) daha sonra bakmak üzere kaydettiği tarifleri (recipe_id) tutar.\par
+- Sütunlar:\par
+  - recipe_id (integer): Tarif kimliği (FK)\par
+  - user_id (text): Kullanıcı kimliği (FK)\par
+- PK: (recipe_id, user_id)\par
+- FK:\par
+  - (recipe_id) → recipe(recipe_id)\par
+  - (user_id) → users(user_id)\par
+
+\b 2.10. user_pref\b0\par
+{\pard\li720\sa200\sl276\slmult1
+\cf1 CREATE TABLE public.user_pref (
+    user_id text NOT NULL,
+    pref_id integer NOT NULL
+);\par
+ALTER TABLE public.user_pref
+    ADD CONSTRAINT user_pref_pkey PRIMARY KEY (user_id, pref_id);\par
+ALTER TABLE public.user_pref
+    ADD CONSTRAINT user_pref_pref_id_fkey FOREIGN KEY (pref_id) REFERENCES public.preference(pref_id);\par
+ALTER TABLE public.user_pref
+    ADD CONSTRAINT user_pref_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id);\cf0\par
+}
+- Amaç: Kullanıcıların (user_id) hangi tercihlere (pref_id) sahip olduğunu tutar.\par
+- Sütunlar:\par
+  - user_id (text): Kullanıcı kimliği (FK)\par
+  - pref_id (integer): Tercih kimliği (FK)\par
+- PK: (user_id, pref_id)\par
+- FK:\par
+  - (user_id) → users(user_id)\par
+  - (pref_id) → preference(pref_id)\par
+
+\b 2.11. users\b0\par
+{\pard\li720\sa200\sl276\slmult1
+\cf1 CREATE TABLE public.users (
+    user_id text NOT NULL,
+    e_mail text,
+    user_name text,
+    user_bday date,
+    tel_no integer
+);\par
+ALTER TABLE public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (user_id);\cf0\par
+}
+- Amaç: Kullanıcı bilgilerini saklar.\par
+- Sütunlar:\par
+  - user_id (text): Kullanıcı kimliği (PK)\par
+  - e_mail (text): E-posta adresi\par
+  - user_name (text): Kullanıcı adı\par
+  - user_bday (date): Doğum tarihi\par
+  - tel_no (integer): Telefon numarası\par
+- PK: user_id\par
+
+\b 3. İlişkiler (Kısa Özet)\b0\par
+1. users → user_id birincil anahtar; allergy, liked_recipes, saved_recipes, user_pref tablolarında FK.\par
+2. ingredient → ingr_id birincil anahtar; allergy ve recipe_ingr tablolarında FK.\par
+3. recipe → recipe_id birincil anahtar; liked_recipes, saved_recipes, recipe_ingr, pref_recipe tablolarında FK.\par
+4. preference → pref_id birincil anahtar; pref_recipe ve user_pref tablolarında FK.\par
+5. category → category_id birincil anahtar; recipe.category ile potansiyel ilişki (FK tanımı yok).\par
+
+\b 4. Yorumlar ve Öneriler\b0\par
+- recipe tablosundaki category sütunu için FOREIGN KEY (category) REFERENCES category(category_id) eklenebilir.\par
+- recipe tablosundaki ingredient sütunu, recipe_ingr tablosuyla kısmen çakışıyor olabilir. Proje ihtiyaçlarına göre bu sütun gereksiz veya farklı bir amaçla kullanılıyor olabilir.\par
+- user_id alanının text olarak tutulması yerine UUID veya integer gibi tipler kullanılabilir. Ancak proje gereksinimlerine göre text de uygundur.\par
+
+\b 5. Sonuç\b0\par
+Bu şema, kullanıcılar, tarifler, malzemeler ve tercihler etrafında kurgulanmış, birden fazla many-to-many ilişkisi içeren bir veritabanı yapısını göstermektedir. Tablolar arası ilişkiler, kullanıcıların tarif beğenileri, tarif malzemeleri, alerji durumları ve tercihleri gibi bilgileri yönetmeye elverişli olacak şekilde tasarlanmıştır.\par
+}
