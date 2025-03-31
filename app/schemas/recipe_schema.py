@@ -3,7 +3,7 @@ from typing import List, Dict, Optional, Union, Any
 
 class Recipe(BaseModel):
     recipe_id: int
-    recipe_name: Optional[str] = None
+    recipe_name: str
     instruction: Optional[str] = None
     ingredient: Optional[str] = None
     total_time: Optional[int] = None
@@ -12,6 +12,9 @@ class Recipe(BaseModel):
     protein: Optional[float] = None
     carb: Optional[float] = None
     category: Optional[int] = None
+
+    class Config:
+        from_attributes = True
 
 class RecipeIngredient(BaseModel):
     recipe_id: int
@@ -22,3 +25,9 @@ class RecipeIngredient(BaseModel):
 class RecipeCard(BaseModel):
     recipe_id: int
     fields: Union[List[str], str]  # İki farklı varyant için 
+
+class SaveRecipeRequest(BaseModel):
+    recipe_ids: List[int]
+
+    class Config:
+        from_attributes = True 

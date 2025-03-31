@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Text, Date, Numeric
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Text, Date, Numeric, BigInteger
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -81,8 +81,8 @@ class RecipeIngr(Base):
 class SavedRecipes(Base):
     __tablename__ = "saved_recipes"
     
-    recipe_id = Column(Integer, ForeignKey("recipe.recipe_id"), primary_key=True)
-    user_id = Column(String, ForeignKey("users.user_id"), primary_key=True)
+    recipe_id = Column(Integer, ForeignKey('recipe.recipe_id'), primary_key=True)
+    user_id = Column(Text, ForeignKey('users.user_id'), primary_key=True)
     
     # İlişkiler
     recipe = relationship("Recipe", back_populates="saved_by")

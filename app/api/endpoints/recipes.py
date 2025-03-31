@@ -4,7 +4,7 @@ from typing import Dict, List, Any, Union
 
 from app.core.database import get_db
 from app.services import recipe_service, preference_service
-from app.schemas.recipe_schema import Recipe, RecipeCard
+from app.schemas.recipe_schema import Recipe, RecipeCard, SaveRecipeRequest
 
 router = APIRouter()  # tags router'da değil, include_router'da belirtilecek
 
@@ -149,4 +149,93 @@ def get_recipe_card(
     try:
         return recipe_service.get_recipe_card(db, recipe_id, fields)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) 
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.get("/getUserSavedRecipes",
+    response_model=List[Recipe],
+    summary="Get User's Saved Recipes",
+    description="""
+    Retrieves all recipes saved by a specific user.
+    
+    Parameters:
+    - **user_id**: ID of the user
+    
+    Returns:
+    - List of complete recipe details for all saved recipes
+    
+    Example:
+    ```
+    GET /api/v1/getUserSavedRecipes?user_id=user123
+    
+    Response:
+    [
+        {
+            "recipe_id": 1,
+            "recipe_name": "Spaghetti Carbonara",
+            "instruction": "1. Boil pasta...",
+            "ingredient": "spaghetti, eggs, pecorino...",
+            "total_time": 30,
+            "calories": 650.5,
+            "fat": 24.3,
+            "protein": 25.1,
+            "carb": 82.4,
+            "category": 1
+        },
+        ...
+    ]
+    ```
+    """)
+async def get_user_saved_recipes(
+    user_id: str = Query(..., description="User ID"),
+    db: Session = Depends(get_db)
+):
+    """
+    Kullanıcının kaydettiği tarifleri getir
+    - user_id: Kullanıcı ID'si
+    """
+    try:
+        return recipe_service.get_user_saved_recipes(db, user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.post("/setUserSavedRecipes",
+    response_model=Dict[str, str],
+    summary="Set User's Saved Recipes",
+    description="""
+    Updates the list of recipes saved by a specific user.
+    This will replace all currently saved recipes with the new list.
+    
+    Parameters:
+    - **user_id**: ID of the user (query parameter)
+    - **recipe_ids**: List of recipe IDs to save (in request body)
+    
+    Example:
+    ```
+    POST /api/v1/setUserSavedRecipes?user_id=user123
+    
+    Request Body:
+    {
+        "recipe_ids": [1, 2, 3, 4]
+    }
+    
+    Response:
+    {
+        "message": "Saved recipes updated successfully"
+    }
+    ```
+    """)
+async def set_user_saved_recipes(
+    user_id: str = Query(..., description="User ID"),
+    request: SaveRecipeRequest = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Kullanıcının kaydettiği tarifleri güncelle
+    - user_id: Kullanıcı ID'si
+    - recipe_ids: Kaydedilecek tarif ID'leri listesi
+    """
+    try:
+        recipe_service.set_user_saved_recipes(db, user_id, request.recipe_ids if request else [])
+        return {"message": "Saved recipes updated successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) 

@@ -68,3 +68,5 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/ 
+
+ProjectStatus.md
