@@ -134,5 +134,5 @@ class Inventory(Base):
     user_id = Column(Text, ForeignKey("users.user_id"), primary_key=True)
     ingr_id = Column(Text, primary_key=True)
     quantity = Column(Numeric)
-
+    
     user = relationship("User", backref="inventory_items") 
