@@ -11,8 +11,47 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@frs.cxnifrcwbgqm.eu-north-1.rds.amazonaws.com/FRS
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
       - qdrant
+      - redis
+    networks:
+      - frs_network
+
+  celery_worker:
+    build: .
+    command: celery -A app.celery_app worker --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - frs_network
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+
+  celery_beat:
+    build: .
+    command: celery -A app.celery_app beat --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - frs_network
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+
+  redis:
+    image: redis:6
+    container_name: redis
+    ports:
+      - "6379:6379"
     networks:
       - frs_network
 
@@ -32,4 +71,4 @@ volumes:
 
 networks:
   frs_network:
-    driver: bridge 
+    driver: bridge
