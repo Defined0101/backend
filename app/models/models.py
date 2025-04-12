@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Text, Date
+import datetime
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Text, DateTime, Date
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -12,10 +13,11 @@ class User(Base):
     tel_no = Column(Integer, nullable=True)
     
     # İlişkiler
-    user_prefs = relationship("UserPref", back_populates="user")
-    saved_recipes = relationship("SavedRecipes", back_populates="user")
-    liked_recipes = relationship("LikedRecipe", back_populates="user")
-    allergies = relationship("Allergy", back_populates="user")
+    user_prefs = relationship("UserPref", back_populates="user", cascade="all, delete-orphan")
+    saved_recipes = relationship("SavedRecipes", back_populates="user", cascade="all, delete-orphan")
+    liked_recipes = relationship("LikedRecipe", back_populates="user", cascade="all, delete-orphan")
+    disliked_recipes = relationship("DislikedRecipe", back_populates="user", cascade="all, delete-orphan")
+    allergies = relationship("Allergy", back_populates="user", cascade="all, delete-orphan")
 
 class UserPref(Base):
     __tablename__ = "user_pref"
@@ -54,6 +56,7 @@ class Recipe(Base):
     recipe_ingredients = relationship("RecipeIngr", back_populates="recipe")
     saved_by = relationship("SavedRecipes", back_populates="recipe")
     liked_by = relationship("LikedRecipe", back_populates="recipe")
+    disliked_by = relationship("DislikedRecipe", back_populates="recipe")
     pref_recipes = relationship("PrefRecipe", back_populates="recipe")
 
 class Ingredient(Base):
@@ -93,10 +96,23 @@ class LikedRecipe(Base):
     
     recipe_id = Column(Integer, ForeignKey("recipe.recipe_id"), primary_key=True)
     user_id = Column(String, ForeignKey("users.user_id"), primary_key=True)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     # İlişkiler
     user = relationship("User", back_populates="liked_recipes")
     recipe = relationship("Recipe", back_populates="liked_by")
+
+class DislikedRecipe(Base):
+    __tablename__ = "disliked_recipes"
+
+    user_id = Column(String, ForeignKey("users.user_id"), primary_key=True)
+    recipe_id = Column(Integer, primary_key=True)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    # İlişkiler
+    user = relationship("User", back_populates="disliked_recipes")
+    recipe = relationship("Recipe", back_populates="disliked_by")
+
 
 class Allergy(Base):
     __tablename__ = "allergy"
