@@ -2,6 +2,7 @@
 from typing import List, Optional
 import qdrant_client
 from qdrant_client import QdrantClient
+from qdrant_client.http.models import Filter as HttpFilter, MinShould
 from qdrant_client.models import (
     Filter,
     FieldCondition,
@@ -431,7 +432,69 @@ class QdrantService:
         top_recipes = candidate_recipes[:limit]
         return top_recipes
 
+    # This is to be used by search bar.
+    def search_recipes_by_keywords(
+        self,
+        input_text: str,
+        limit: int = 10
+    ) -> List[dict]:
+        """
+        1) Find recipes whose payload fields contain the full input_text.
+        2) Find recipes containing any individual word.
+        3) Merge both sets (full-string hits first), dedupe by id, and return up to `limit`.
+        """
+        text = input_text.strip().lower()
+        if not text:
+            return []
 
+        # Phase 1: full-string match
+        full_conditions = [
+            FieldCondition(key=key, match=MatchValue(value=text))
+            for key in ["Name", "Category", "Label", "Ingredients"]
+        ]
+        full_filter = HttpFilter(
+            min_should=MinShould(conditions=full_conditions, min_count=1)
+        )
+        full_scroll = self.client.scroll(
+            collection_name=self.recipe_collection,
+            scroll_filter=full_filter,
+            limit=limit,
+            with_payload=True,
+        )
+        full_hits = full_scroll[0] if full_scroll else []
+
+        # Phase 2: per-word OR search
+        words = [w for w in text.split() if w]
+        word_conditions = []
+        for word in words:
+            for key in ["Name", "Category", "Label", "Ingredients"]:
+                word_conditions.append(
+                    FieldCondition(key=key, match=MatchValue(value=word))
+                )
+        word_filter = HttpFilter(
+            min_should=MinShould(conditions=word_conditions, min_count=1)
+        )
+        word_scroll = self.client.scroll(
+            collection_name=self.recipe_collection,
+            scroll_filter=word_filter,
+            limit=limit,
+            with_payload=True,
+        )
+        word_hits = word_scroll[0] if word_scroll else []
+
+        # Merge and dedupe by point.id, preserving order (full first)
+        seen_ids = set()
+        merged = []
+        for hit in full_hits + word_hits:
+            if hit.id not in seen_ids:
+                seen_ids.add(hit.id)
+                merged.append(hit)
+            if len(merged) >= limit:
+                break
+
+        # Process and return as scroll results (no scores)
+        return self._process_scroll_results(merged)
+    
     #Cleanup resources
     def cleanup(self):
         """Cleanup resources"""
