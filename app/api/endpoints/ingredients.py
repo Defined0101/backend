@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
-from typing import List, Dict
+from typing import List, Dict, Optional
 from app.core.database import get_db
 from app.schemas.ingredient_schema import UserIngredients, IngredientResponse, UserAllergies, InventoryItem
 from app.services import ingredient_service, preference_service
@@ -10,28 +10,45 @@ from app.schemas.preference_schema import UserPreferences
 router = APIRouter(tags=["ingredients"])
 
 @router.get("/getIngredients", 
-    response_model=List[str],
+    response_model=IngredientResponse,
     summary="Get All Ingredients",
     description="""
-    Retrieves a list of all available ingredients in the system.
+    Retrieves a paginated list of all available ingredients in the system.
     
-    Returns a simple list of ingredient names.
+    Parameters:
+    - **page**: Page number (default: 1)
+    - **page_size**: Number of items per page (default: 50)
+    - **search**: Optional search term to filter ingredients
+    
+    Returns a paginated list of ingredients with metadata.
     
     Example:
     ```
-    GET /api/v1/getIngredients
+    GET /api/v1/getIngredients?page=1&page_size=20
     
     Response:
-    [
-        "tomato",
-        "onion",
-        "olive oil",
-        ...
-    ]
+    {
+        "items": [
+            {"ingr_id": 1, "ingr_name": "apple"},
+            {"ingr_id": 2, "ingr_name": "banana"},
+            ...
+        ],
+        "total": 500,
+        "page": 1,
+        "page_size": 20,
+        "total_pages": 25,
+        "has_next": true,
+        "has_previous": false
+    }
     ```
     """)
-async def get_ingredients(db: Session = Depends(get_db)):
-    return ingredient_service.get_ingredient_names(db)
+async def get_ingredients(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(50, ge=1, le=100, description="Items per page"),
+    search: Optional[str] = Query(None, description="Search term"),
+    db: Session = Depends(get_db)
+):
+    return ingredient_service.get_all_ingredients(db, page, page_size, search)
 
 @router.get("/getUserIngredients",
     summary="Get User's Ingredients",

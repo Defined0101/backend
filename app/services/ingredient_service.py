@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, String
+from sqlalchemy import func, String, Integer
 from app.models.models import Ingredient, Allergy, User, Inventory
 from typing import List, Optional, Text
 from app.schemas.ingredient_schema import IngredientCreate, UserIngredients, IngredientResponse, UserAllergies
@@ -57,7 +57,7 @@ def set_user_allergies(db: Session, user_allergies: UserAllergies) -> List[str]:
 def get_user_ingredients(db: Session, user_id: str) -> List[dict]:
     """Kullanıcının malzemelerini ve miktarlarını getir"""
     ingredients = db.query(Ingredient.ingr_name, Inventory.quantity)\
-        .join(Inventory, Inventory.ingr_id == Ingredient.ingr_id.cast(String))\
+        .join(Inventory, Inventory.ingr_id.cast(Integer) == Ingredient.ingr_id)\
         .filter(Inventory.user_id == user_id)\
         .order_by(Ingredient.ingr_name)\
         .all()
@@ -84,7 +84,7 @@ def set_user_ingredients(db: Session, user_ingredients: UserIngredients) -> List
         inventory = Inventory(
             user_id=user_ingredients.user_id,
             ingr_id=str(ingredient.ingr_id),  # inventory tablosunda ingr_id text olarak tanımlı
-            quantity=item.quantity
+            quantity=item.quantity if item.quantity else 1.0
         )
         db.add(inventory)
         result.append({
