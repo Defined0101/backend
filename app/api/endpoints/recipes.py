@@ -304,4 +304,71 @@ async def unlike_recipe(
         recipe_service.unlike_recipe(db, user_id, recipe_id)
         return {"message": "Recipe unliked successfully"}
     except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# Dislike/Undislike Endpoints
+
+@router.get("/getUserDislikedRecipes",
+    response_model=List[Recipe],
+    summary="Get User's Disliked Recipes",
+    description="""
+    Retrieves all recipes disliked by a specific user.
+    
+    Parameters:
+    - **user_id**: ID of the user
+    
+    Returns:
+    - List of complete recipe details for all disliked recipes
+    """)
+async def get_user_disliked_recipes(
+    user_id: str = Query(..., description="User ID"),
+    db: Session = Depends(get_db)
+):
+    try:
+        return recipe_service.get_user_disliked_recipes(db, user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.post("/dislikeRecipe",
+    response_model=Dict[str, str],
+    summary="Dislike a Recipe",
+    description="""
+    Marks a recipe as disliked by a user.
+    If already disliked, updates the timestamp.
+    If the recipe was liked, the like is removed.
+    
+    Parameters:
+    - **user_id**: ID of the user (query parameter)
+    - **recipe_id**: ID of the recipe to dislike (query parameter)
+    """)
+async def dislike_recipe(
+    user_id: str = Query(..., description="User ID"),
+    recipe_id: int = Query(..., description="Recipe ID"),
+    db: Session = Depends(get_db)
+):
+    try:
+        recipe_service.dislike_recipe(db, user_id, recipe_id)
+        return {"message": "Recipe disliked successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/unDislikeRecipe",
+    response_model=Dict[str, str],
+    summary="Undislike a Recipe",
+    description="""
+    Removes the dislike status of a recipe for a user.
+    
+    Parameters:
+    - **user_id**: ID of the user (query parameter)
+    - **recipe_id**: ID of the recipe to undislike (query parameter)
+    """)
+async def undislike_recipe(
+    user_id: str = Query(..., description="User ID"),
+    recipe_id: int = Query(..., description="Recipe ID"),
+    db: Session = Depends(get_db)
+):
+    try:
+        recipe_service.undislike_recipe(db, user_id, recipe_id)
+        return {"message": "Recipe undisliked successfully"}
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) 
