@@ -416,4 +416,29 @@ async def unsave_recipe(
         recipe_service.unsave_recipe(db, user_id, recipe_id)
         return {"message": "Recipe unsaved successfully"}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) 
+        raise HTTPException(status_code=400, detail=str(e))
+
+# Surprise Recipe Endpoint
+
+@router.get("/getSurpriseRecipe",
+    response_model=Recipe,
+    summary="Get Surprise Recipe",
+    description="""
+    Retrieves a random recipe object, potentially excluding those disliked by the user.
+    
+    Parameters:
+    - **user_id**: ID of the user (query parameter)
+    
+    Returns:
+    - A single random Recipe object
+    """)
+async def get_surprise_recipe(
+    user_id: str = Query(..., description="User ID"),
+    db: Session = Depends(get_db)
+):
+    try:
+        recipe = recipe_service.get_surprise_recipe_id(db, user_id)
+        return recipe
+    except ValueError as e:
+        # If user not found or no recipes exist at all
+        raise HTTPException(status_code=404, detail=str(e)) 

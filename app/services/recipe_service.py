@@ -3,7 +3,7 @@ from app.models.models import Recipe, RecipeIngr, SavedRecipes, LikedRecipe, Use
 from app.schemas.recipe_schema import Recipe as RecipeSchema
 from typing import Dict, List, Any, Union
 from sqlalchemy.sql import func
-from sqlalchemy import Integer
+from sqlalchemy import Integer, text
 
 def get_recipe_details(db: Session, recipe_id: int) -> RecipeSchema:
     """Tarif detaylarını getir"""
@@ -337,4 +337,42 @@ def unsave_recipe(db: Session, user_id: str, recipe_id: int):
         db.commit()
     except Exception as e:
         db.rollback()
-        raise ValueError(f"Error unsaving recipe: {str(e)}") 
+        raise ValueError(f"Error unsaving recipe: {str(e)}")
+
+def get_surprise_recipe_id(db: Session, user_id: str) -> RecipeSchema:
+    """Kullanıcıya rastgele bir tarif nesnesi öner (beğenmedikleri hariç)"""
+    # Kullanıcı var mı kontrol et
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise ValueError(f"User with id {user_id} not found")
+
+    # Kullanıcının beğenmediği tarif ID'lerini al (cast ederek)
+    disliked_recipe_ids_query = db.query(DislikedRecipe.recipe_id.cast(Integer))\
+                                  .filter(DislikedRecipe.user_id == user_id)
+    disliked_recipe_ids = {row[0] for row in disliked_recipe_ids_query.all()}
+
+    # Beğenilmeyenler hariç, rastgele bir tarif seç (tam nesne)
+    random_recipe_query = db.query(Recipe)\
+                             .filter(Recipe.recipe_id.notin_(disliked_recipe_ids))
+                             
+    # Veritabanı özelinde rastgele sıralama
+    if db.bind.dialect.name == 'postgresql':
+        random_recipe_query = random_recipe_query.order_by(func.random()) 
+    elif db.bind.dialect.name == 'sqlite':
+         random_recipe_query = random_recipe_query.order_by(func.random())
+    else:
+         random_recipe_query = random_recipe_query.order_by(text('RANDOM()'))
+
+    random_recipe = random_recipe_query.first()
+
+    if random_recipe is None:
+        # Eğer beğenilmeyenler dışında tarif kalmadıysa veya hiç tarif yoksa
+        # Tüm tarifler arasından rastgele seç (tam nesne)
+        fallback_recipe = db.query(Recipe).order_by(func.random()).first()
+        if fallback_recipe is None:
+             raise ValueError("No recipes found in the database")
+        # SQLAlchemy modelini Pydantic modeline çevir
+        return RecipeSchema.from_orm(fallback_recipe)
+
+    # SQLAlchemy modelini Pydantic modeline çevir
+    return RecipeSchema.from_orm(random_recipe) 
