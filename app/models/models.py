@@ -83,7 +83,6 @@ class SavedRecipes(Base):
     
     recipe_id = Column(Integer, ForeignKey('recipe.recipe_id'), primary_key=True)
     user_id = Column(Text, ForeignKey('users.user_id'), primary_key=True)
-    updated_at = Column(TIMESTAMP, nullable=True)
     
     # İlişkiler
     recipe = relationship("Recipe", back_populates="saved_by")

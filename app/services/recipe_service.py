@@ -95,8 +95,7 @@ def set_user_saved_recipes(db: Session, user_id: str, recipe_ids: List[int]):
             
         saved_recipe = SavedRecipes(
             user_id=user_id,
-            recipe_id=recipe_id,
-            updated_at=func.now()  # Güncel zaman damgası ekle - Celery tarafından kullanılacak
+            recipe_id=recipe_id
         )
         db.add(saved_recipe)
     
@@ -280,4 +279,62 @@ def undislike_recipe(db: Session, user_id: str, recipe_id: int):
         db.commit()
     except Exception as e:
         db.rollback()
-        raise ValueError(f"Error undisliking recipe: {str(e)}") 
+        raise ValueError(f"Error undisliking recipe: {str(e)}")
+
+def save_recipe(db: Session, user_id: str, recipe_id: int):
+    """Kullanıcının tek bir tarifi kaydetmesini sağla"""
+    # Kullanıcı ve tarif var mı kontrol et
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise ValueError(f"User with id {user_id} not found")
+    recipe = db.query(Recipe).filter(Recipe.recipe_id == recipe_id).first()
+    if not recipe:
+        raise ValueError(f"Recipe with id {recipe_id} not found")
+
+    # Daha önce kaydedilmiş mi kontrol et
+    existing_save = db.query(SavedRecipes)\
+        .filter(SavedRecipes.user_id == user_id, SavedRecipes.recipe_id == recipe_id)\
+        .first()
+
+    if existing_save:
+        # Zaten kaydedilmiş, bir şey yapmaya gerek yok (veya hata verilebilir)
+        pass
+    else:
+        # Yeni kayıt ekle
+        new_save = SavedRecipes(
+            user_id=user_id,
+            recipe_id=recipe_id
+        )
+        db.add(new_save)
+
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise ValueError(f"Error saving recipe: {str(e)}")
+
+def unsave_recipe(db: Session, user_id: str, recipe_id: int):
+    """Kullanıcının tek bir tarif kaydını silmesini sağla"""
+    # Kullanıcı ve tarif var mı kontrol et
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise ValueError(f"User with id {user_id} not found")
+    recipe = db.query(Recipe).filter(Recipe.recipe_id == recipe_id).first()
+    if not recipe:
+        raise ValueError(f"Recipe with id {recipe_id} not found")
+
+    # Kayıtlı tarifi bul ve sil
+    save_record = db.query(SavedRecipes)\
+        .filter(SavedRecipes.user_id == user_id, SavedRecipes.recipe_id == recipe_id)\
+        .first()
+
+    if not save_record:
+        raise ValueError(f"Recipe {recipe_id} is not saved by user {user_id}")
+
+    db.delete(save_record)
+
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise ValueError(f"Error unsaving recipe: {str(e)}") 

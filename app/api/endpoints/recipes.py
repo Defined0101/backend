@@ -371,4 +371,49 @@ async def undislike_recipe(
         recipe_service.undislike_recipe(db, user_id, recipe_id)
         return {"message": "Recipe undisliked successfully"}
     except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# Save/Unsave Endpoints
+
+@router.post("/saveRecipe",
+    response_model=Dict[str, str],
+    summary="Save a Single Recipe",
+    description="""
+    Saves a single recipe for a user.
+    If already saved, updates the timestamp.
+    
+    Parameters:
+    - **user_id**: ID of the user (query parameter)
+    - **recipe_id**: ID of the recipe to save (query parameter)
+    """)
+async def save_recipe(
+    user_id: str = Query(..., description="User ID"),
+    recipe_id: int = Query(..., description="Recipe ID"),
+    db: Session = Depends(get_db)
+):
+    try:
+        recipe_service.save_recipe(db, user_id, recipe_id)
+        return {"message": "Recipe saved successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/unsaveRecipe",
+    response_model=Dict[str, str],
+    summary="Unsave a Single Recipe",
+    description="""
+    Removes a single saved recipe for a user.
+    
+    Parameters:
+    - **user_id**: ID of the user (query parameter)
+    - **recipe_id**: ID of the recipe to unsave (query parameter)
+    """)
+async def unsave_recipe(
+    user_id: str = Query(..., description="User ID"),
+    recipe_id: int = Query(..., description="Recipe ID"),
+    db: Session = Depends(get_db)
+):
+    try:
+        recipe_service.unsave_recipe(db, user_id, recipe_id)
+        return {"message": "Recipe unsaved successfully"}
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) 
