@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session
-from app.models.models import Recipe, RecipeIngr, SavedRecipes
+from app.models.models import Recipe, RecipeIngr, SavedRecipes, LikedRecipe, User
 from app.schemas.recipe_schema import Recipe as RecipeSchema
 from typing import Dict, List, Any, Union
+from sqlalchemy.sql import func
 
 def get_recipe_details(db: Session, recipe_id: int) -> RecipeSchema:
     """Tarif detaylarını getir"""
@@ -93,7 +94,8 @@ def set_user_saved_recipes(db: Session, user_id: str, recipe_ids: List[int]):
             
         saved_recipe = SavedRecipes(
             user_id=user_id,
-            recipe_id=recipe_id
+            recipe_id=recipe_id,
+            updated_at=func.now()  # Güncel zaman damgası ekle - Celery tarafından kullanılacak
         )
         db.add(saved_recipe)
     
@@ -101,4 +103,88 @@ def set_user_saved_recipes(db: Session, user_id: str, recipe_ids: List[int]):
         db.commit()
     except Exception as e:
         db.rollback()
-        raise ValueError(f"Error saving recipes: {str(e)}") 
+        raise ValueError(f"Error saving recipes: {str(e)}")
+
+def get_user_liked_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
+    """Kullanıcının beğendiği tarifleri getir"""
+    # Kullanıcı var mı kontrol et
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise ValueError(f"User with id {user_id} not found")
+        
+    liked_recipes = db.query(Recipe)\
+        .join(LikedRecipe)\
+        .filter(LikedRecipe.user_id == user_id)\
+        .all()
+    
+    return [RecipeSchema(
+        recipe_id=recipe.recipe_id,
+        recipe_name=recipe.recipe_name,
+        instruction=recipe.instruction,
+        ingredient=recipe.ingredient,
+        total_time=recipe.total_time,
+        calories=recipe.calories,
+        fat=recipe.fat,
+        protein=recipe.protein,
+        carb=recipe.carb,
+        category=recipe.category
+    ) for recipe in liked_recipes]
+
+def like_recipe(db: Session, user_id: str, recipe_id: int):
+    """Kullanıcının bir tarifi beğenmesini sağla"""
+    # Kullanıcı ve tarif var mı kontrol et
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise ValueError(f"User with id {user_id} not found")
+    recipe = db.query(Recipe).filter(Recipe.recipe_id == recipe_id).first()
+    if not recipe:
+        raise ValueError(f"Recipe with id {recipe_id} not found")
+        
+    # Daha önce beğenilmiş mi kontrol et
+    existing_like = db.query(LikedRecipe)\
+        .filter(LikedRecipe.user_id == user_id, LikedRecipe.recipe_id == recipe_id)\
+        .first()
+        
+    if existing_like:
+        # Zaten beğenilmiş, sadece zaman damgasını güncelle (veya hata ver)
+        existing_like.updated_at = func.now()
+    else:
+        # Yeni beğeni ekle
+        new_like = LikedRecipe(
+            user_id=user_id,
+            recipe_id=recipe_id,
+            updated_at=func.now() # Celery için
+        )
+        db.add(new_like)
+    
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise ValueError(f"Error liking recipe: {str(e)}")
+
+def unlike_recipe(db: Session, user_id: str, recipe_id: int):
+    """Kullanıcının bir tarif beğenisini geri almasını sağla"""
+    # Kullanıcı ve tarif var mı kontrol et
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise ValueError(f"User with id {user_id} not found")
+    recipe = db.query(Recipe).filter(Recipe.recipe_id == recipe_id).first()
+    if not recipe:
+        raise ValueError(f"Recipe with id {recipe_id} not found")
+        
+    # Beğeni kaydını bul ve sil
+    like_record = db.query(LikedRecipe)\
+        .filter(LikedRecipe.user_id == user_id, LikedRecipe.recipe_id == recipe_id)\
+        .first()
+        
+    if not like_record:
+        raise ValueError(f"Recipe {recipe_id} is not liked by user {user_id}")
+        
+    db.delete(like_record)
+    
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise ValueError(f"Error unliking recipe: {str(e)}") 

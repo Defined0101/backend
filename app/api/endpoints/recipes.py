@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
 from typing import Dict, List, Any, Union
 
@@ -237,5 +237,71 @@ async def set_user_saved_recipes(
     try:
         recipe_service.set_user_saved_recipes(db, user_id, request.recipe_ids if request else [])
         return {"message": "Saved recipes updated successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# Like/Unlike Endpoints
+
+@router.get("/getUserLikedRecipes",
+    response_model=List[Recipe],
+    summary="Get User's Liked Recipes",
+    description="""
+    Retrieves all recipes liked by a specific user.
+    
+    Parameters:
+    - **user_id**: ID of the user
+    
+    Returns:
+    - List of complete recipe details for all liked recipes
+    """)
+async def get_user_liked_recipes(
+    user_id: str = Query(..., description="User ID"),
+    db: Session = Depends(get_db)
+):
+    try:
+        return recipe_service.get_user_liked_recipes(db, user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.post("/likeRecipe",
+    response_model=Dict[str, str],
+    summary="Like a Recipe",
+    description="""
+    Marks a recipe as liked by a user.
+    If already liked, updates the timestamp.
+    
+    Parameters:
+    - **user_id**: ID of the user (query parameter)
+    - **recipe_id**: ID of the recipe to like (query parameter)
+    """)
+async def like_recipe(
+    user_id: str = Query(..., description="User ID"),
+    recipe_id: int = Query(..., description="Recipe ID"),
+    db: Session = Depends(get_db)
+):
+    try:
+        recipe_service.like_recipe(db, user_id, recipe_id)
+        return {"message": "Recipe liked successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/unlikeRecipe",
+    response_model=Dict[str, str],
+    summary="Unlike a Recipe",
+    description="""
+    Removes the like status of a recipe for a user.
+    
+    Parameters:
+    - **user_id**: ID of the user (query parameter)
+    - **recipe_id**: ID of the recipe to unlike (query parameter)
+    """)
+async def unlike_recipe(
+    user_id: str = Query(..., description="User ID"),
+    recipe_id: int = Query(..., description="Recipe ID"),
+    db: Session = Depends(get_db)
+):
+    try:
+        recipe_service.unlike_recipe(db, user_id, recipe_id)
+        return {"message": "Recipe unliked successfully"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) 

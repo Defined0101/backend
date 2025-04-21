@@ -22,10 +22,10 @@ def get_all_allergies(db: Session) -> List[str]:
 
 def get_user_allergies(db: Session, user_id: str) -> List[str]:
     """Kullanıcının alerjik olduğu malzemeleri getir"""
-    allergies = db.query(Ingredient.ingr_name)\
-        .join(Allergy, Allergy.ingr_id == Ingredient.ingr_id)\
-        .filter(Allergy.user_id == user_id)\
-        .order_by(Ingredient.ingr_name)\
+    # Materialized view kullan
+    allergies = db.query(func.distinct(UserAllergiesView.ingr_name))\
+        .filter(UserAllergiesView.user_id == user_id)\
+        .order_by(UserAllergiesView.ingr_name)\
         .all()
     return [allergy[0] for allergy in allergies]
 
@@ -56,10 +56,10 @@ def set_user_allergies(db: Session, user_allergies: UserAllergies) -> List[str]:
 
 def get_user_ingredients(db: Session, user_id: str) -> List[dict]:
     """Kullanıcının malzemelerini ve miktarlarını getir"""
-    ingredients = db.query(Ingredient.ingr_name, Inventory.quantity)\
-        .join(Inventory, Inventory.ingr_id.cast(Integer) == Ingredient.ingr_id)\
-        .filter(Inventory.user_id == user_id)\
-        .order_by(Ingredient.ingr_name)\
+    # Materialized view kullan
+    ingredients = db.query(UserInventoryView.ingr_name, UserInventoryView.quantity)\
+        .filter(UserInventoryView.user_id == user_id)\
+        .order_by(UserInventoryView.ingr_name)\
         .all()
     return [{"ingredient_name": name, "quantity": float(qty) if qty else 1.0} 
             for name, qty in ingredients]

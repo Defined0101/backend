@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Text, Date, Numeric, BigInteger
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Text, Date, Numeric, BigInteger, TIMESTAMP
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -83,6 +83,7 @@ class SavedRecipes(Base):
     
     recipe_id = Column(Integer, ForeignKey('recipe.recipe_id'), primary_key=True)
     user_id = Column(Text, ForeignKey('users.user_id'), primary_key=True)
+    updated_at = Column(TIMESTAMP, nullable=True)
     
     # İlişkiler
     recipe = relationship("Recipe", back_populates="saved_by")
@@ -93,6 +94,7 @@ class LikedRecipe(Base):
     
     recipe_id = Column(Integer, ForeignKey("recipe.recipe_id"), primary_key=True)
     user_id = Column(String, ForeignKey("users.user_id"), primary_key=True)
+    updated_at = Column(TIMESTAMP, nullable=True)
     
     # İlişkiler
     user = relationship("User", back_populates="liked_recipes")
@@ -135,4 +137,30 @@ class Inventory(Base):
     ingr_id = Column(Text, primary_key=True)
     quantity = Column(Numeric)
     
-    user = relationship("User", backref="inventory_items") 
+    user = relationship("User", backref="inventory_items")
+    
+# Materialized Views
+class UserAllergiesView(Base):
+    __tablename__ = "user_allergies"
+    
+    user_id = Column(Text, primary_key=True)
+    ingr_id = Column(Integer, primary_key=True)
+    ingr_name = Column(Text)
+
+class UserInventoryView(Base):
+    __tablename__ = "user_inventory"
+    
+    user_id = Column(Text, primary_key=True)
+    ingr_id = Column(Text, primary_key=True)
+    ingr_name = Column(Text)
+    quantity = Column(Numeric)
+    
+class DislikedRecipe(Base):
+    __tablename__ = "disliked_recipes"
+    
+    recipe_id = Column(Integer, primary_key=True)
+    user_id = Column(Text, primary_key=True)
+    updated_at = Column(TIMESTAMP, nullable=True)
+    
+    # İlişkiler - tablo yapısında FK constraint olmadığı için normal ilişki yok
+    # user ve recipe ilişkilerini eklemek için gerekli relationship tanımlamaları yapılmalı 
