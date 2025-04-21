@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, String, Integer
-from app.models.models import Ingredient, Allergy, User, Inventory
+from app.models.models import Ingredient, Allergy, User, Inventory, UserAllergiesView, UserInventoryView
 from typing import List, Optional, Text
 from app.schemas.ingredient_schema import IngredientCreate, UserIngredients, IngredientResponse, UserAllergies
 
