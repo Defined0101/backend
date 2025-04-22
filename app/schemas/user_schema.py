@@ -1,22 +1,21 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List
+from typing import Optional
+from datetime import date
 
-class UserCreate(BaseModel):
-    name: str
-    email: EmailStr
+class UserBase(BaseModel):
+    e_mail: Optional[EmailStr] = None
+    user_name: Optional[str] = None
+    user_bday: Optional[date] = None
+    tel_no: Optional[int] = None
 
-class User(BaseModel):
+class UserCreate(UserBase):
     user_id: str
-    user_name: str
-    e_mail: EmailStr
+
+class UserUpdate(UserBase):
+    pass
+
+class UserResponse(UserBase):
+    user_id: str
 
     class Config:
-        from_attributes = True
-
-class UserResponse(BaseModel):
-    user_id: str
-    user_name: str
-    e_mail: EmailStr
-
-    class Config:
-        from_attributes = True
+        from_attributes = True 

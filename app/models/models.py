@@ -1,16 +1,17 @@
 import datetime
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Text, DateTime, Date
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Text, DateTime, Date, BigInteger, TIMESTAMP
+
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 class User(Base):
     __tablename__ = "users"
     
-    user_id = Column(String, primary_key=True, index=True)
-    user_name = Column(String, nullable=True)
-    e_mail = Column(String, unique=True, index=True, nullable=True)
-    user_bday = Column(Date, nullable=True)
-    tel_no = Column(Integer, nullable=True)
+    user_id = Column(Text, primary_key=True)
+    e_mail = Column(Text)
+    user_name = Column(Text)
+    user_bday = Column(Date)
+    tel_no = Column(Integer)
     
     # İlişkiler
     user_prefs = relationship("UserPref", back_populates="user", cascade="all, delete-orphan")
@@ -62,8 +63,8 @@ class Recipe(Base):
 class Ingredient(Base):
     __tablename__ = "ingredient"
     
-    ingr_id = Column(Integer, primary_key=True, index=True)
-    ingr_name = Column(String, nullable=True)
+    ingr_id = Column(Integer, primary_key=True)
+    ingr_name = Column(Text)
     
     # İlişkiler
     recipe_ingredients = relationship("RecipeIngr", back_populates="ingredient")
@@ -84,8 +85,8 @@ class RecipeIngr(Base):
 class SavedRecipes(Base):
     __tablename__ = "saved_recipes"
     
-    recipe_id = Column(Integer, ForeignKey("recipe.recipe_id"), primary_key=True)
-    user_id = Column(String, ForeignKey("users.user_id"), primary_key=True)
+    recipe_id = Column(Integer, ForeignKey('recipe.recipe_id'), primary_key=True)
+    user_id = Column(Text, ForeignKey('users.user_id'), primary_key=True)
     
     # İlişkiler
     recipe = relationship("Recipe", back_populates="saved_by")
@@ -97,6 +98,7 @@ class LikedRecipe(Base):
     recipe_id = Column(Integer, ForeignKey("recipe.recipe_id"), primary_key=True)
     user_id = Column(String, ForeignKey("users.user_id"), primary_key=True)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow)
+
     
     # İlişkiler
     user = relationship("User", back_populates="liked_recipes")
@@ -117,7 +119,7 @@ class DislikedRecipe(Base):
 class Allergy(Base):
     __tablename__ = "allergy"
     
-    user_id = Column(String, ForeignKey("users.user_id"), primary_key=True)
+    user_id = Column(Text, ForeignKey("users.user_id"), primary_key=True)
     ingr_id = Column(Integer, ForeignKey("ingredient.ingr_id"), primary_key=True)
     
     # İlişkiler
@@ -142,4 +144,39 @@ class PrefRecipe(Base):
     
     # İlişkiler
     preference = relationship("Preference", back_populates="pref_recipes")
-    recipe = relationship("Recipe", back_populates="pref_recipes") 
+    recipe = relationship("Recipe", back_populates="pref_recipes")
+
+class Inventory(Base):
+    __tablename__ = "inventory"
+    
+    user_id = Column(Text, ForeignKey("users.user_id"), primary_key=True)
+    ingr_id = Column(Text, primary_key=True)
+    quantity = Column(Numeric)
+    
+    user = relationship("User", backref="inventory_items")
+    
+# Materialized Views
+class UserAllergiesView(Base):
+    __tablename__ = "user_allergies"
+    
+    user_id = Column(Text, primary_key=True)
+    ingr_id = Column(Integer, primary_key=True)
+    ingr_name = Column(Text)
+
+class UserInventoryView(Base):
+    __tablename__ = "user_inventory"
+    
+    user_id = Column(Text, primary_key=True)
+    ingr_id = Column(Text, primary_key=True)
+    ingr_name = Column(Text)
+    quantity = Column(Numeric)
+    
+class DislikedRecipe(Base):
+    __tablename__ = "disliked_recipes"
+    
+    recipe_id = Column(Integer, primary_key=True)
+    user_id = Column(Text, primary_key=True)
+    updated_at = Column(TIMESTAMP, nullable=True)
+    
+    # İlişkiler - tablo yapısında FK constraint olmadığı için normal ilişki yok
+    # user ve recipe ilişkilerini eklemek için gerekli relationship tanımlamaları yapılmalı 

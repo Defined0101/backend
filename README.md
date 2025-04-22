@@ -4,21 +4,47 @@ This repository contains the backend implementation of a Food Recommendation Sys
 
 ## Features
 
-- Comprehensive recipe details retrieval
-- Customizable recipe card information
-- Category and label management
-- User preference tracking and personalization
-- Advanced recipe search and filtering capabilities
-- Ingredient-based recipe recommendations
-- Nutritional information tracking
+- Basic user management and authentication
+- Comprehensive recipe details and recommendations
+- Ingredient and allergy management
+- User preferences and dietary restrictions
+- Advanced recipe search and filtering
+- Personalized recipe recommendations
 
 ## Technology Stack
 
 - **Framework**: FastAPI
 - **Database**: PostgreSQL (Amazon RDS)
 - **ORM**: SQLAlchemy
-- **Validation**: Pydantic
 - **Documentation**: Swagger/OpenAPI
+
+## Project Structure
+
+```
+app/
+├── api/
+│   ├── endpoints/
+│   │   ├── ingredients.py
+│   │   ├── recipes.py
+│   │   └── users.py
+│   └── api.py
+├── core/
+│   ├── config.py
+│   └── database.py
+├── models/
+│   └── models.py
+├── schemas/
+│   ├── ingredient_schema.py
+│   ├── preference_schema.py
+│   ├── recipe_schema.py
+│   └── user_schema.py
+├── services/
+│   ├── ingredient_service.py
+│   ├── preference_service.py
+│   ├── recipe_service.py
+│   └── user_service.py
+└── main.py
+```
 
 ## Installation
 
@@ -43,7 +69,7 @@ pip install -r requirements.txt
 
 4. Configure environment variables:
 Create a `.env` file in the root directory with the following variables:
-```
+```env
 DATABASE_URL=postgresql://username:password@host:port/dbname
 ```
 
@@ -52,122 +78,180 @@ DATABASE_URL=postgresql://username:password@host:port/dbname
 uvicorn app.main:app --reload
 ```
 
+## Docker Kurulumu ve Kullanımı
+
+### Geliştirme Ortamı
+
+Development ortamında çalıştırmak için:
+
+```bash
+docker compose up backend
+```
+
+Bu komut:
+- Hot-reload özelliği ile çalışır
+- Port 8000'de hizmet verir
+- Debug modu aktiftir
+- Kod değişikliklerini anında yansıtır
+
+### Production Ortamı
+
+Production ortamında çalıştırmak için:
+
+```bash
+docker compose up backend-prod
+```
+
+Bu komut:
+- Optimize edilmiş production build kullanır
+- Port 8001'de hizmet verir
+- Debug modu kapalıdır
+- Daha güvenli ve performanslı çalışır
+
+### Diğer Faydalı Docker Komutları
+
+Containerları durdurmak için:
+```bash
+docker compose down
+```
+
+Logları görüntülemek için:
+```bash
+docker compose logs -f
+```
+
+Containerları yeniden başlatmak için:
+```bash
+docker compose restart
+```
+
+Değişikliklerle birlikte yeniden build etmek için:
+```bash
+docker compose up --build
+```
+
+### Environment Variables
+
+Sistem aşağıdaki environment variable'ları kullanır:
+
+```env
+DATABASE_URL=postgresql://user:password@host:port/dbname
+QDRANT_HOST=qdrant
+QDRANT_PORT=6333
+DEBUG=False
+```
+
+### API Endpoints
+
+Development: http://localhost:8000
+Production: http://localhost:8001
+
+Health check endpoints:
+- Development: http://localhost:8000/health
+- Production: http://localhost:8001/health
+
+API Documentation:
+- Development: http://localhost:8000/docs
+- Production: http://localhost:8001/docs
+
 ## API Documentation
 
-### Interactive Documentation
-
-The API comes with built-in interactive documentation:
+The API documentation is available through Swagger UI at:
 ```
 http://localhost:8000/docs
 ```
 
-### Endpoints
+### API Endpoints
+
+#### User Management
+- `GET /api/v1/users` - Get all users
+- `POST /api/v1/users` - Create a new user
+- `GET /api/v1/users/{user_id}` - Get user by ID
+- `PUT /api/v1/users/{user_id}` - Update user
+- `DELETE /api/v1/users/{user_id}` - Delete user
 
 #### Recipe Management
+- `GET /api/v1/getRecipeDetails/{recipe_id}` - Get detailed recipe information
+- `GET /api/v1/getRecipeCard/{recipe_id}` - Get recipe card with specified fields
 
-**Get Recipe Details**
-```
-GET /getRecipeDetails/{recipe_id}
-```
-Returns comprehensive information about a specific recipe, including ingredients, nutritional values, and preparation instructions.
+#### Ingredient Management
+- `GET /api/v1/getIngredients` - Get all available ingredients
+- `GET /api/v1/getUserIngredients` - Get user's ingredients
+- `POST /api/v1/setUserIngredients` - Update user's ingredients
 
-**Get Recipe Card**
-```
-GET /getRecipeCard/{recipe_id}?fields=recipe_name&fields=calories&fields=total_time&fields=ingredients
-```
-Returns specific fields of a recipe for displaying in a card format. Fields can be customized through query parameters.
+#### Allergy Management
+- `GET /api/v1/getAllergies` - Get all possible allergies
+- `GET /api/v1/getUserAllergies` - Get user's allergies
+- `POST /api/v1/setUserAllergies` - Update user's allergies
 
-#### Category and Label Management
-
-**Get All Categories**
-```
-GET /getCategories
-```
-Returns all available recipe categories.
-
-**Get All Labels**
-```
-GET /getLabels
-```
-Returns all available dietary preference labels (vegan, gluten-free, etc.).
-
-#### User Preference Management
-
-**Get User Preferences**
-```
-GET /getUserPreferences/{user_id}
-```
-Returns the dietary preferences for a specific user.
-
-**Set User Preferences**
-```
-POST /setUserPreferences
-Content-Type: application/json
-
-{
-  "user_id": "user123",
-  "dairy_free": true,
-  "gluten_free": false,
-  "pescetarian": false,
-  "vegan": false,
-  "vegetarian": true
-}
-```
-Updates a user's dietary preferences.
-
-#### Recipe Search and Filtering
-
-**Query Recipes**
-```
-POST /query
-Content-Type: application/json
-
-{
-  "query": {
-    "name": "chicken",
-    "ingredient": ["garlic", "onion"]
-  },
-  "sortBy": {
-    "field": "recipe_name",
-    "direction": "asc"
-  }
-}
-```
-Searches for recipes based on name and ingredients, with sorting options.
+#### Preferences & Categories
+- `GET /api/v1/getCategories` - Get all recipe categories
+- `GET /api/v1/getPreferences` - Get all dietary preferences
+- `GET /api/v1/getUserPreferences` - Get user's preferences
+- `POST /api/v1/setUserPreferences` - Update user's preferences
 
 ## Database Schema
 
-The system utilizes a relational database with the following key tables:
+### Users Table
+- `user_id` (text, primary key)
+- `e_mail` (text)
+- `user_name` (text)
+- `user_bday` (date)
+- `tel_no` (bigint)
 
-- **users**: User account information
-- **recipe**: Recipe details including nutritional information
-- **ingredient**: Ingredient information
-- **recipe_ingr**: Many-to-many relationship between recipes and ingredients
-- **category**: Recipe categories
-- **preference**: Dietary preference options
-- **user_pref**: User-preference relationships
-- **saved_recipes**: User-saved recipes
-- **liked_recipes**: User-liked recipes
-- **allergies**: User-ingredient allergies
-- **pref_recipe**: Preference-recipe relationships
+### Ingredient Table
+- `ingr_id` (integer, primary key)
+- `ingr_name` (text)
+
+### Inventory Table
+- `user_id` (text, foreign key)
+- `ingr_id` (integer)
+- `quantity` (numeric)
+
+### Allergy Table
+- `user_id` (text, foreign key)
+- `ingr_id` (integer, foreign key)
+
+### Category Table
+- `category_id` (integer, primary key)
+- `cat_name` (text)
+
+### Preference Table
+- `pref_id` (integer, primary key)
+- `pref_name` (text)
+
+### User Preferences Table
+- `user_id` (text, foreign key)
+- `pref_id` (integer, foreign key)
 
 ## Error Handling
 
-The API implements comprehensive error handling with appropriate HTTP status codes and descriptive error messages to facilitate debugging and provide a better developer experience.
+The API implements comprehensive error handling with appropriate HTTP status codes:
 
-## Security
+- `400 Bad Request` - Invalid request payload
+- `401 Unauthorized` - Missing or invalid authentication
+- `403 Forbidden` - Insufficient permissions
+- `404 Not Found` - Resource not found
+- `500 Internal Server Error` - Server-side errors
+
+## Security Features
 
 - Input validation using Pydantic models
-- Database query parameterization to prevent SQL injection
+- Database query parameterization
 - CORS middleware configuration
+- Environment variable configuration
 
 ## Future Enhancements
 
-- Authentication and authorization
-- Recipe recommendation algorithm improvements
-- User activity tracking
-- Social features (sharing recipes, following users)
-- Mobile application integration
+- Firebase Authentication integration
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 

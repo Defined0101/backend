@@ -1,6 +1,7 @@
 import os
 from pydantic_settings import BaseSettings
 from typing import List, Optional
+from pathlib import Path
 
 class Settings(BaseSettings):
     # Database configuration
@@ -8,6 +9,13 @@ class Settings(BaseSettings):
         "DATABASE_URL", 
         "postgresql://postgres:postgres@frs.cxnifrcwbgqm.eu-north-1.rds.amazonaws.com/FRS"
     )
+    
+    # Docker database configuration
+    DB_USER: str = os.getenv("DB_USER", "postgres")
+    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "postgres")
+    DB_HOST: str = os.getenv("DB_HOST", "db")
+    DB_PORT: str = os.getenv("DB_PORT", "5432")
+    DB_NAME: str = os.getenv("DB_NAME", "FRS")
     
     # Qdrant configuration
     QDRANT_HOST: str = os.getenv("QDRANT_HOST", "localhost")

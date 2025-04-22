@@ -68,3 +68,9 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/ 
+
+ProjectStatus.md
+db.rtf
+
+# Qdrant data directory
+/qdrant/storage/
