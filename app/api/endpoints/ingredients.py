@@ -242,7 +242,7 @@ async def get_preferences(db: Session = Depends(get_db)):
     return preference_service.get_preferences(db)
 
 @router.get("/getUserPreferences",
-    response_model=List[str],
+    response_model=UserPreferences,
     summary="Get User's Preferences",
     description="""
     Retrieves dietary preferences for a specific user.
@@ -255,10 +255,13 @@ async def get_preferences(db: Session = Depends(get_db)):
     GET /api/v1/getUserPreferences?user_id=user123
     
     Response:
-    [
-        "Vegetarian",
-        "Gluten-free"
-    ]
+    {
+        "user_id": "user123",
+        "preferences": [
+            "Vegetarian",
+            "Gluten-free"
+        ]
+    }
     ```
     """)
 async def get_user_preferences(
@@ -268,7 +271,8 @@ async def get_user_preferences(
     user = ingredient_service.get_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return preference_service.get_user_preferences(db, user_id)
+    preferences_list = preference_service.get_user_preferences(db, user_id)
+    return UserPreferences(user_id=user_id, preferences=preferences_list)
 
 @router.post("/setUserPreferences",
     response_model=List[str],
