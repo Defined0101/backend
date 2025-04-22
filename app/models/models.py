@@ -108,7 +108,7 @@ class DislikedRecipe(Base):
     __tablename__ = "disliked_recipes"
 
     user_id = Column(String, ForeignKey("users.user_id"), primary_key=True)
-    recipe_id = Column(Integer, primary_key=True)
+    recipe_id = Column(Integer, ForeignKey("recipe.recipe_id"), primary_key=True)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     # İlişkiler
