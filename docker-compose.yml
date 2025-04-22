@@ -11,14 +11,11 @@ services:
       - "8000:8000"
     depends_on:
       - qdrant
-      - redis
     env_file:
       - .env
     environment:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
       - QDRANT_URL=http://qdrant:6333
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -27,49 +24,6 @@ services:
       start_period: 40s
     volumes:
       - .:/app
-    networks:
-      - frs_network
-
-  # Added Celery worker from provided version
-  celery_worker:
-    build: .
-    command: celery -A app.celery_app worker --loglevel=info
-    volumes:
-      - .:/app
-    depends_on:
-      - backend
-      - redis
-    networks:
-      - frs_network
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - env_file:
-          - .env
-
-  # Added Celery beat from provided version
-  celery_beat:
-    build: .
-    command: celery -A app.celery_app beat --loglevel=info
-    volumes:
-      - .:/app
-    depends_on:
-      - backend
-      - redis
-    networks:
-      - frs_network
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - env_file:
-          - .env
-
-  # Added Redis from provided version
-  redis:
-    image: redis:6
-    container_name: redis
-    ports:
-      - "6379:6379"
     networks:
       - frs_network
 
@@ -86,6 +40,25 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    networks:
+      - frs_network
+
+  # Production environment - use this for deployment
+  backend-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:DefinedAtTheDisco01*@frs-db.ch88c4s48jz3.eu-north-1.rds.amazonaws.com:5432/FRS
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - LOG_LEVEL=info
+      - QDRANT_URL=http://qdrant:6333
+    depends_on:
+      - qdrant
+    restart: always
     networks:
       - frs_network
 
