@@ -70,3 +70,7 @@ coverage.xml
 .hypothesis/ 
 
 ProjectStatus.md
+db.rtf
+
+# Qdrant data directory
+/qdrant/storage/

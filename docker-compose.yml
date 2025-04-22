@@ -9,10 +9,13 @@ services:
       target: development
     ports:
       - "8000:8000"
+    depends_on:
+      - qdrant
     env_file:
       - .env
     environment:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+      - QDRANT_URL=http://qdrant:6333
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -21,6 +24,22 @@ services:
       start_period: 40s
     volumes:
       - .:/app
+    networks:
+      - frs_network
+
+  # Qdrant vector database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - ./qdrant/storage:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/collections"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     networks:
       - frs_network
 
@@ -36,10 +55,13 @@ services:
       - ENVIRONMENT=production
       - DEBUG=false
       - LOG_LEVEL=info
+      - QDRANT_URL=http://qdrant:6333
+    depends_on:
+      - qdrant
     restart: always
     networks:
       - frs_network
 
 networks:
   frs_network:
-    driver: bridge 
+    driver: bridge
