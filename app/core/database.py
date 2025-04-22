@@ -5,7 +5,8 @@ from app.core.config import settings
 
 # Create database URL based on environment
 def get_database_url():
-    return f"postgresql://postgres:DefinedAtTheDisco01*@frs-db.ch88c4s48jz3.eu-north-1.rds.amazonaws.com:5432/FRS"
+    # Ortam değişkenlerinden URL'yi settings aracılığıyla al
+    return settings.DATABASE_URL
 
 # Create database engine
 engine = create_engine(get_database_url())
