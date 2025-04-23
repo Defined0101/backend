@@ -18,7 +18,11 @@ celery_app.conf.result_expires = 3600 # 1 hour
 
 # Automatically find and register tasks in the specified modules/folders.
 # This means you don't need to manually import every task in your Celery app.
+
 celery_app.autodiscover_tasks(["app.tasks"])
+
+# Ensure our task modules are loaded
+import app.tasks.update_embeddings
 
 # Celery Beat: run task every 5 mins
 celery_app.conf.beat_schedule = {
