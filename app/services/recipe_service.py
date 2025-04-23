@@ -4,6 +4,7 @@ from app.schemas.recipe_schema import Recipe as RecipeSchema
 from typing import Dict, List, Any, Union
 from sqlalchemy.sql import func
 from sqlalchemy import Integer, text
+from app.utils.embedding_tracker import mark_user_for_update
 
 # Qdrant ve Ayarlar için importlar
 from app.services.qdrant_service import QdrantService
@@ -192,6 +193,7 @@ def unlike_recipe(db: Session, user_id: str, recipe_id: int):
     
     try:
         db.commit()
+        mark_user_for_update(user_id)
     except Exception as e:
         db.rollback()
         raise ValueError(f"Error unliking recipe: {str(e)}")
@@ -284,9 +286,22 @@ def undislike_recipe(db: Session, user_id: str, recipe_id: int):
     
     try:
         db.commit()
+        mark_user_for_update(user_id)
     except Exception as e:
         db.rollback()
         raise ValueError(f"Error undisliking recipe: {str(e)}")
+    
+def get_user_liked_recipes_ids(db: Session, user_id: str) -> List[int]:
+    """Return list of liked recipe IDs (for embedding only)"""
+    liked = db.query(LikedRecipe.recipe_id)\
+        .filter(LikedRecipe.user_id == user_id).all()
+    return [r.recipe_id for r in liked]
+
+def get_user_disliked_recipes_ids(db: Session, user_id: str) -> List[int]:
+    """Return list of disliked recipe IDs (for embedding only)"""
+    disliked = db.query(DislikedRecipe.recipe_id)\
+        .filter(DislikedRecipe.user_id == user_id).all()
+    return [int(r.recipe_id) for r in disliked]
 
 def save_recipe(db: Session, user_id: str, recipe_id: int):
     """Kullanıcının tek bir tarifi kaydetmesini sağla"""
