@@ -126,8 +126,7 @@ class QdrantService:
         user_vector = (liked_tensor - disliked_tensor).numpy().tolist()
         return user_vector
     
-    # Delete user embedding from the collection
-    def delete_user_embedding(self, user_id: int) -> dict:
+    def delete_user_embedding(self, user_id: str) -> dict:
         """
         Deletes a user embedding from the user collection in Qdrant.
         """
@@ -137,54 +136,46 @@ class QdrantService:
         try:
             self.client.delete(
                 collection_name=self.user_collection,
-                points_selector=[user_id],
+                points_selector={"points": [int(user_id)]},
                 wait=True
             )
             return {"status": "deleted", "collection": self.user_collection, "id": user_id}
         except Exception as e:
             logger.error(f"Error deleting user embedding for user {user_id}: {e}")
             return {"status": "error", "message": str(e)}
-    
-    # Upsert user embedding to the collection
-    def upsert_user(self, user_id: int, liked: list[int]=None, disliked: list[int]=None) -> dict:
-        # Step 1: Calculate user vector
+
+    def upsert_user(self, user_id: str, liked: list[int] = None, disliked: list[int] = None) -> dict:
         user_vector = self.calculate_user_embeddings(liked, disliked)
         if not user_vector:
             user_vector = [0.0] * self.vector_size
-        
-        liked_list = []
-        if liked:
-            liked_list = liked
-            
-        disliked_list = []
-        if disliked:
-            disliked_list = disliked
-            
-        # Step 2: Ensure the collection exists
+
         if not self._ensure_collection(self.user_collection):
             self.client.create_collection(
-            collection_name = self.user_collection,
-            vectors_config=VectorParams(
-                size = self.vector_size,
-                distance = "Cosine" #Distance.COSINE
-            )
-        )
-        # Step 3: Upsert the user vector
-        point = PointStruct(
-                    id=user_id, 
-                    vector=user_vector,
-                    payload = {
-                                "user_id": int(user_id),
-                                "liked_recipes": list(liked_list),
-                                "disliked_recipes": list(disliked_list)
-                            }
+                collection_name=self.user_collection,
+                vectors_config=VectorParams(
+                    size=self.vector_size,
+                    distance="Cosine"
                 )
-        self.client.upsert(collection_name=self.user_collection, 
-                           points=[point], 
-                           wait=True
-                           )
+            )
+
+        point = PointStruct(
+            id=int(user_id),
+            vector=user_vector,
+            payload={
+                "user_id": int(user_id),
+                "liked_recipes": liked or [],
+                "disliked_recipes": disliked or []
+            }
+        )
+
+        self.client.upsert(
+            collection_name=self.user_collection,
+            points=[point],
+            wait=True
+        )
 
         return {"status": "inserted", "collection": self.user_collection, "id": user_id}
+
 
     # Search for recipes based on various filters
     def search_recipes(
