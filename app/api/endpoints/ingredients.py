@@ -13,7 +13,8 @@ router = APIRouter(tags=["ingredients"])
     response_model=IngredientResponse,
     summary="Get All Ingredients",
     description="""
-    Retrieves a paginated list of all available ingredients in the system.
+    Retrieves a paginated list of all available ingredients in the system, including their default unit.
+    If the default unit is not set, it defaults to 'piece'.
     
     Parameters:
     - **page**: Page number (default: 1)
@@ -29,8 +30,9 @@ router = APIRouter(tags=["ingredients"])
     Response:
     {
         "items": [
-            {"ingr_id": 1, "ingr_name": "apple"},
-            {"ingr_id": 2, "ingr_name": "banana"},
+            {"ingr_id": 1, "ingr_name": "apple", "default_unit": "piece"},
+            {"ingr_id": 2, "ingr_name": "banana", "default_unit": "piece"},
+            {"ingr_id": 3, "ingr_name": "flour", "default_unit": "g"},
             ...
         ],
         "total": 500,

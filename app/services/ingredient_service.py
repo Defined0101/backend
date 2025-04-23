@@ -128,13 +128,20 @@ def get_all_ingredients(db: Session, page: int = 1, page_size: int = 50, search:
     query = query.offset((page - 1) * page_size).limit(page_size)
     
     # Sonuçları al
-    ingredients = query.all()
+    ingredients_db = query.all()
+
+    # Process ingredients to set default_unit
+    processed_ingredients = []
+    for ingredient in ingredients_db:
+        if not ingredient.default_unit: # Check if None or empty
+            ingredient.default_unit = "piece"
+        processed_ingredients.append(ingredient) # Use the modified ingredient object
     
     # Toplam sayfa sayısı
     total_pages = (total + page_size - 1) // page_size
     
     return IngredientResponse(
-        items=ingredients,
+        items=processed_ingredients, # Pass the processed list
         total=total,
         page=page,
         page_size=page_size,

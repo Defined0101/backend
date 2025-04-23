@@ -20,6 +20,7 @@ class UserAllergies(BaseModel):
 class IngredientBase(BaseModel):
     ingr_id: int
     ingr_name: str
+    default_unit: str
 
     class Config:
         from_attributes = True

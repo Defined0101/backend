@@ -65,6 +65,7 @@ class Ingredient(Base):
     
     ingr_id = Column(Integer, primary_key=True)
     ingr_name = Column(Text)
+    default_unit = Column(String, nullable=True)
     
     # İlişkiler
     recipe_ingredients = relationship("RecipeIngr", back_populates="ingredient")
