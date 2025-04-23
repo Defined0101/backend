@@ -1,6 +1,6 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Dict
 
 class UserPreferences(BaseModel):
     user_id: str
-    preferences: List[str] 
+    preferences: Dict[str, bool] 

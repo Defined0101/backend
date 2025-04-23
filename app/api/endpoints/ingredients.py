@@ -245,7 +245,7 @@ async def get_preferences(db: Session = Depends(get_db)):
     response_model=UserPreferences,
     summary="Get User's Preferences",
     description="""
-    Retrieves dietary preferences for a specific user.
+    Retrieves dietary preferences for a specific user as a dictionary.
     
     Parameters:
     - **user_id**: ID of the user
@@ -257,10 +257,11 @@ async def get_preferences(db: Session = Depends(get_db)):
     Response:
     {
         "user_id": "user123",
-        "preferences": [
-            "Vegetarian",
-            "Gluten-free"
-        ]
+        "preferences": {
+            "Vegetarian": true,
+            "Gluten-free": true,
+            "Vegan": false 
+        }
     }
     ```
     """)
@@ -271,27 +272,36 @@ async def get_user_preferences(
     user = ingredient_service.get_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    preferences_list = preference_service.get_user_preferences(db, user_id)
-    return UserPreferences(user_id=user_id, preferences=preferences_list)
+    
+    # Get all available preferences
+    all_prefs = preference_service.get_preferences(db)
+    # Get user's selected preferences as a list
+    user_prefs_list = preference_service.get_user_preferences(db, user_id)
+    
+    # Construct the dictionary response
+    prefs_dict = {pref: (pref in user_prefs_list) for pref in all_prefs}
+    
+    return UserPreferences(user_id=user_id, preferences=prefs_dict)
 
 @router.post("/setUserPreferences",
-    response_model=List[str],
+    response_model=UserPreferences,
     summary="Update User's Preferences",
     description="""
-    Updates the dietary preferences for a user.
+    Updates the dietary preferences for a user using a dictionary format.
     
-    - Replaces all existing preferences with the new list
-    - Preferences must be from the available preferences list
+    - Replaces all existing preferences based on the provided dictionary.
+    - Keys should be valid preference names. Values should be boolean.
     
     Example:
     ```json
     POST /api/v1/setUserPreferences
     {
         "user_id": "user123",
-        "preferences": [
-            "Vegetarian",
-            "Gluten-free"
-        ]
+        "preferences": {
+            "Vegetarian": true,
+            "Gluten-free": true,
+            "Vegan": false
+        }
     }
     ```
     """)
@@ -299,11 +309,18 @@ async def set_user_preferences(
     preferences: UserPreferences = Body(...,
         example={
             "user_id": "user123",
-            "preferences": ["Vegetarian", "Gluten-free"]
+            "preferences": {
+                "Vegetarian": True, 
+                "Gluten-free": True,
+                "Vegan": False
+            }
         }),
     db: Session = Depends(get_db)
 ):
     user = ingredient_service.get_user(db, preferences.user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return preference_service.set_user_preferences(db, preferences)
+    # The service now handles the dictionary and returns it
+    updated_prefs_dict = preference_service.set_user_preferences(db, preferences)
+    # Return the full UserPreferences object
+    return UserPreferences(user_id=preferences.user_id, preferences=updated_prefs_dict)
