@@ -1,0 +1,29 @@
+# Git
+.git
+.gitignore
+
+# Python
+venv/
+*.pyc
+__pycache__/
+*.env
+.env.*
+*.egg-info/
+dist/
+build/
+
+# IDE / OS specific
+.idea/
+.vscode/
+.DS_Store
+.cursor/
+
+# Qdrant data (mounted as volume)
+qdrant/
+
+# Docker
+Dockerfile*
+
+# Diğer (Varsa büyük veri dosyaları, loglar vb. eklenebilir)
+# *.log
+# data/ 

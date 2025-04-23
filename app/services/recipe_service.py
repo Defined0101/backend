@@ -5,6 +5,13 @@ from typing import Dict, List, Any, Union
 from sqlalchemy.sql import func
 from sqlalchemy import Integer, text
 
+# Qdrant ve Ayarlar için importlar
+from app.services.qdrant_service import QdrantService
+from app.core.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
+
 def get_recipe_details(db: Session, recipe_id: int) -> RecipeSchema:
     """Tarif detaylarını getir"""
     recipe = db.query(Recipe).filter(Recipe.recipe_id == recipe_id).first()
@@ -340,39 +347,101 @@ def unsave_recipe(db: Session, user_id: str, recipe_id: int):
         raise ValueError(f"Error unsaving recipe: {str(e)}")
 
 def get_surprise_recipe_id(db: Session, user_id: str) -> RecipeSchema:
-    """Kullanıcıya rastgele bir tarif nesnesi öner (beğenmedikleri hariç)"""
-    # Kullanıcı var mı kontrol et
-    user = db.query(User).filter(User.user_id == user_id).first()
-    if not user:
-        raise ValueError(f"User with id {user_id} not found")
-
-    # Kullanıcının beğenmediği tarif ID'lerini al (cast ederek)
-    disliked_recipe_ids_query = db.query(DislikedRecipe.recipe_id.cast(Integer))\
-                                  .filter(DislikedRecipe.user_id == user_id)
-    disliked_recipe_ids = {row[0] for row in disliked_recipe_ids_query.all()}
-
-    # Beğenilmeyenler hariç, rastgele bir tarif seç (tam nesne)
-    random_recipe_query = db.query(Recipe)\
-                             .filter(Recipe.recipe_id.notin_(disliked_recipe_ids))
-                             
-    # Veritabanı özelinde rastgele sıralama
-    if db.bind.dialect.name == 'postgresql':
-        random_recipe_query = random_recipe_query.order_by(func.random()) 
-    elif db.bind.dialect.name == 'sqlite':
-         random_recipe_query = random_recipe_query.order_by(func.random())
-    else:
-         random_recipe_query = random_recipe_query.order_by(text('RANDOM()'))
-
-    random_recipe = random_recipe_query.first()
-
-    if random_recipe is None:
+    """Kullanıcı için sürpriz bir tarif önerisi getir (beğenmedikleri hariç)"""
+    # TODO: Bu fonksiyon sadece ID dönmeli ve ismi get_surprise_recipe_id olmalı.
+    # Mevcut hali RecipeSchema dönüyor, bu API katmanında düzeltilmeli.
+    
+    # Kullanıcının beğenmediği tariflerin ID'lerini al
+    disliked_recipe_ids_query = db.query(DislikedRecipe.recipe_id).filter(DislikedRecipe.user_id == user_id)
+    disliked_recipe_ids = [int(r[0]) for r in disliked_recipe_ids_query.all()]
+    
+    # Beğenilmeyenler dışındaki rastgele bir tarifi seç
+    # order_by(func.random()) veritabanına göre değişebilir (PostgreSQL için çalışır)
+    random_recipe = db.query(Recipe)\
+        .filter(Recipe.recipe_id.notin_(disliked_recipe_ids))\
+        .order_by(func.random())\
+        .first()
+        
+    if not random_recipe:
         # Eğer beğenilmeyenler dışında tarif kalmadıysa veya hiç tarif yoksa
-        # Tüm tarifler arasından rastgele seç (tam nesne)
-        fallback_recipe = db.query(Recipe).order_by(func.random()).first()
-        if fallback_recipe is None:
-             raise ValueError("No recipes found in the database")
-        # SQLAlchemy modelini Pydantic modeline çevir
-        return RecipeSchema.from_orm(fallback_recipe)
+        # herhangi bir rastgele tarif seç
+        random_recipe = db.query(Recipe).order_by(func.random()).first()
+        
+    if not random_recipe:
+        raise ValueError("No recipes available in the database")
+        
+    # TODO: API bunu sadece ID olarak istemişti, şimdilik tam objeyi schema'ya çevirip dönüyoruz.
+    return RecipeSchema(
+        recipe_id=random_recipe.recipe_id,
+        recipe_name=random_recipe.recipe_name,
+        instruction=random_recipe.instruction,
+        ingredient=random_recipe.ingredient,
+        total_time=random_recipe.total_time,
+        calories=random_recipe.calories,
+        fat=random_recipe.fat,
+        protein=random_recipe.protein,
+        carb=random_recipe.carb,
+        category=random_recipe.category
+    )
 
-    # SQLAlchemy modelini Pydantic modeline çevir
-    return RecipeSchema.from_orm(random_recipe) 
+# --- YENİ FONKSİYON --- 
+def get_user_recommendations(db: Session, user_id: str, limit: int = 10) -> List[RecipeSchema]:
+    """Kullanıcı için Qdrant vektör araması kullanarak tarif önerileri getirir."""
+    try:
+        # Qdrant servisini başlat
+        # Not: Ayarlar (settings) doğrudan import edildi, bu büyük uygulamalarda
+        # dependency injection ile daha iyi yönetilebilir.
+        qdrant_service = QdrantService(config=settings)
+
+        # Qdrant'tan önerilen tarif bilgilerini (ID ve payload) al
+        # recommend_recipe, beğenilmeyenleri zaten filtreliyor olmalı.
+        recommended_data = qdrant_service.recommend_recipe(user_id=int(user_id), limit=limit)
+
+        if not recommended_data:
+            logger.info(f"No recommendations found for user {user_id} from Qdrant.")
+            return []
+
+        # Önerilen tariflerin ID'lerini çıkar
+        recommended_ids = [item['id'] for item in recommended_data]
+        
+        if not recommended_ids:
+            return []
+
+        # Veritabanından tam tarif detaylarını çek
+        recipes = db.query(Recipe).filter(Recipe.recipe_id.in_(recommended_ids)).all()
+        
+        # Qdrant'tan gelen sırayı korumak için ID'ye göre map oluştur
+        recipe_map = {recipe.recipe_id: recipe for recipe in recipes}
+        
+        # Sonuçları Qdrant sırasına göre ve RecipeSchema formatında oluştur
+        ordered_recipes = []
+        for rec_id in recommended_ids:
+            if rec_id in recipe_map:
+                recipe = recipe_map[rec_id]
+                ordered_recipes.append(RecipeSchema(
+                    recipe_id=recipe.recipe_id,
+                    recipe_name=recipe.recipe_name,
+                    instruction=recipe.instruction,
+                    ingredient=recipe.ingredient,
+                    total_time=recipe.total_time,
+                    calories=recipe.calories,
+                    fat=recipe.fat,
+                    protein=recipe.protein,
+                    carb=recipe.carb,
+                    category=recipe.category
+                ))
+            else:
+                logger.warning(f"Recipe ID {rec_id} recommended by Qdrant but not found in DB.")
+
+        return ordered_recipes
+
+    except ValueError as e:
+        # Qdrant servisi veya DB sorgusu sırasında beklenen hatalar (örn. kullanıcı bulunamadı)
+        logger.error(f"Error getting recommendations for user {user_id}: {e}")
+        raise # API katmanının işlemesi için hatayı tekrar yükselt
+    except Exception as e:
+        # Beklenmedik diğer hatalar
+        logger.exception(f"Unexpected error getting recommendations for user {user_id}: {e}")
+        # Beklenmedik hatalarda boş liste dönmek daha güvenli olabilir veya hatayı yükseltmek.
+        # Şimdilik boş liste dönelim.
+        return [] 

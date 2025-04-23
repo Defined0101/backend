@@ -13,7 +13,7 @@ from qdrant_client.models import (
 import logging
 from qdrant_client.http.models import VectorParams, PointStruct
 import qdrant_client.models
-from config import Settings
+from app.core.config import Settings
 import torch
 
 logging.basicConfig(level=logging.INFO)
@@ -447,7 +447,7 @@ class QdrantService:
         if not text:
             return []
 
-        # Phase 1: full-string match
+        # Phase 1: full-string match
         full_conditions = [
             FieldCondition(key=key, match=MatchValue(value=text))
             for key in ["Name", "Category", "Label", "Ingredients"]
@@ -463,7 +463,7 @@ class QdrantService:
         )
         full_hits = full_scroll[0] if full_scroll else []
 
-        # Phase 2: per-word OR search
+        # Phase 2: per-word OR search
         words = [w for w in text.split() if w]
         word_conditions = []
         for word in words:

@@ -1,5 +1,5 @@
 import datetime
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Text, DateTime, Date, BigInteger, TIMESTAMP
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Text, DateTime, Date, BigInteger, TIMESTAMP, Numeric
 
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -169,14 +169,4 @@ class UserInventoryView(Base):
     user_id = Column(Text, primary_key=True)
     ingr_id = Column(Text, primary_key=True)
     ingr_name = Column(Text)
-    quantity = Column(Numeric)
-    
-class DislikedRecipe(Base):
-    __tablename__ = "disliked_recipes"
-    
-    recipe_id = Column(Integer, primary_key=True)
-    user_id = Column(Text, primary_key=True)
-    updated_at = Column(TIMESTAMP, nullable=True)
-    
-    # İlişkiler - tablo yapısında FK constraint olmadığı için normal ilişki yok
-    # user ve recipe ilişkilerini eklemek için gerekli relationship tanımlamaları yapılmalı 
+    quantity = Column(Numeric) 

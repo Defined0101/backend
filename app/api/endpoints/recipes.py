@@ -31,6 +31,52 @@ async def get_categories(db: Session = Depends(get_db)):
     """Tüm yemek kategorilerini getir"""
     return preference_service.get_categories(db)
 
+@router.get("/getUserRecommendations",
+    response_model=List[Recipe],
+    summary="Get User Recommendations",
+    description="""
+    Retrieves personalized recipe recommendations for a given user based on their preferences and interaction history.
+    
+    Parameters:
+    - **user_id**: The ID of the user for whom recommendations are requested.
+    
+    Returns:
+    - A list of recommended recipes, ordered by relevance.
+    
+    Example:
+    ```
+    GET /api/v1/getUserRecommendations?user_id=user123
+    
+    Response:
+    [
+        {
+            "recipe_id": 101,
+            "recipe_name": "Recommended Recipe 1",
+            ...
+        },
+        {
+            "recipe_id": 205,
+            "recipe_name": "Recommended Recipe 2",
+            ...
+        }
+    ]
+    ```
+    """)
+async def get_user_recommendations(
+    user_id: str = Query(..., description="User ID for recommendations", example="user123"),
+    db: Session = Depends(get_db)
+):
+    """Kullanıcı için kişiselleştirilmiş tarif önerileri getirir."""
+    try:
+        recommendations = recipe_service.get_user_recommendations(db=db, user_id=user_id)
+        return recommendations
+    except ValueError as e:
+        # Servis katmanından gelen bilinen hatalar (örn. kullanıcı bulunamadı)
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        # Beklenmedik hatalar
+        raise HTTPException(status_code=500, detail="Internal server error while generating recommendations.")
+
 @router.get("/getRecipeDetails", 
     response_model=Recipe,
     summary="Get Recipe Details",
