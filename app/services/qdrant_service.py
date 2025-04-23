@@ -15,7 +15,7 @@ from qdrant_client.http.models import VectorParams, PointStruct
 import qdrant_client.models
 from app.core.config import Settings
 import torch
-
+import os
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -29,11 +29,23 @@ class QdrantService:
         
     
     def _init_qdrant(self) -> QdrantClient:
+        
+        host       = os.getenv("QDRANT_HOST", "localhost")
+        port       = int(os.getenv("QDRANT_PORT", 6333))
+        grpc_port  = int(os.getenv("QDRANT_GRPC_PORT", 6334))
+        prefer_grpc = os.getenv("PREFER_GRPC", "false").lower() in ("1","true","yes")
+        timeout    = int(os.getenv("QDRANT_TIMEOUT", 300))
+
+        # HTTP URL’i hazırlıyoruz
+        url = f"http://{host}:{port}"
+
+        logging.info(f"Initializing QdrantClient → url={url}, grpc_port={grpc_port}, prefer_grpc={prefer_grpc}")
+
         return QdrantClient(
-            self.config.QDRANT_HOST,
-            port=self.config.QDRANT_PORT,
-            timeout=300,
-            prefer_grpc=True,
+            url=url,
+            grpc_port=grpc_port,
+            prefer_grpc=prefer_grpc,
+            timeout=timeout
         )
 
     def _ensure_collection(self, collection_name: str) -> bool:

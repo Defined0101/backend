@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     # Qdrant configuration
     QDRANT_HOST: str = os.getenv("QDRANT_HOST", "localhost")
     QDRANT_PORT: int = int(os.getenv("QDRANT_PORT", "6333"))
+    QDRANT_GRPC_PORT: int = int(os.getenv("QDRANT_GRPC_PORT", "6334"))
     # Allowed collections as comma-separated list
     QDRANT_COLLECTIONS: List[str] = os.getenv("QDRANT_COLLECTIONS", "user_embeddings,text_embeddings").split(",")
     QDRANT_VECTOR_SIZE: int = int(os.getenv("QDRANT_VECTOR_SIZE", 4096))
