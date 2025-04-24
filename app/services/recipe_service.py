@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
-from app.models.models import Recipe, RecipeIngr, SavedRecipes, LikedRecipe, User, DislikedRecipe, Ingredient as IngredientModel
+from app.models.models import Recipe, RecipeIngr, SavedRecipes, LikedRecipe, User, DislikedRecipe, Ingredient as IngredientModel, Preference, PrefRecipe
 from app.schemas.recipe_schema import Recipe as RecipeSchema
 from app.schemas.ingredient_schema import RecipeIngredientDetail
 from typing import Dict, List, Any, Union
@@ -14,15 +14,45 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# --- Helper function to build the label dictionary ---
+def _build_recipe_label(db: Session, recipe: Recipe) -> Dict[str, bool]:
+    """Helper function to create the label dictionary for a given recipe."""
+    # Optimization: Cache all preferences if they don't change frequently
+    # For now, query them each time.
+    all_prefs = db.query(Preference).all()
+    all_pref_names = {pref.pref_name: False for pref in all_prefs if pref.pref_name}
+
+    # Ensure pref_recipes and their preferences are loaded (might be pre-loaded by caller)
+    # This explicit check might be redundant if options(joinedload(...)) was used effectively.
+    if not hasattr(recipe, 'pref_recipes'): # Check if relationship was loaded
+         # If not loaded, query explicitly (less efficient)
+         recipe_pref_links = db.query(PrefRecipe).filter(PrefRecipe.recipe_id == recipe.recipe_id).options(joinedload(PrefRecipe.preference)).all()
+         recipe_pref_names = {pref_link.preference.pref_name 
+                              for pref_link in recipe_pref_links 
+                              if pref_link.preference and pref_link.preference.pref_name}
+    else:
+         # Use the pre-loaded relationship
+        recipe_pref_names = {pref_recipe.preference.pref_name 
+                             for pref_recipe in recipe.pref_recipes 
+                             if pref_recipe.preference and pref_recipe.preference.pref_name}
+
+    label_dict = all_pref_names.copy()
+    for name in recipe_pref_names:
+        if name in label_dict:
+            label_dict[name] = True
+    return label_dict
+
 def get_recipe_details(db: Session, recipe_id: int) -> RecipeSchema:
     """Tarif detaylarını getir"""
     recipe = db.query(Recipe)\
-        .options(joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient))\
+        .options(
+            joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient),
+            joinedload(Recipe.pref_recipes).joinedload(PrefRecipe.preference)
+        )\
         .filter(Recipe.recipe_id == recipe_id).first()
     if recipe is None:
         raise ValueError(f"Recipe with id {recipe_id} not found")
     
-    # Extract ingredients using the relationship
     ingredients_list = []
     if recipe.recipe_ingredients:
         ingredients_list = [
@@ -33,7 +63,9 @@ def get_recipe_details(db: Session, recipe_id: int) -> RecipeSchema:
             ) for ri in recipe.recipe_ingredients
         ]
 
-    # Create the RecipeSchema, using the fetched ingredients list
+    # --- Use helper function to build label ---
+    label_dict = _build_recipe_label(db, recipe)
+
     recipe_data = RecipeSchema(
         recipe_id=recipe.recipe_id,
         recipe_name=recipe.recipe_name,
@@ -44,7 +76,8 @@ def get_recipe_details(db: Session, recipe_id: int) -> RecipeSchema:
         fat=recipe.fat,
         protein=recipe.protein,
         carb=recipe.carb,
-        category=recipe.category
+        category=recipe.category,
+        label=label_dict
     )
     return recipe_data
 
@@ -87,10 +120,17 @@ def get_user_saved_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
     saved_recipes = db.query(Recipe)\
         .join(SavedRecipes)\
         .filter(SavedRecipes.user_id == user_id)\
-        .options(joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient))\
+        .options(
+            joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient),
+            joinedload(Recipe.pref_recipes).joinedload(PrefRecipe.preference)
+        )\
         .all()
     
     result_list = []
+    # --- Pre-fetch all preferences once outside the loop ---
+    all_prefs = db.query(Preference).all()
+    all_pref_names_base = {pref.pref_name: False for pref in all_prefs if pref.pref_name}
+
     for recipe in saved_recipes:
         ingredients_list = []
         if recipe.recipe_ingredients:
@@ -101,6 +141,16 @@ def get_user_saved_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
                     unit=ri.unit
                 ) for ri in recipe.recipe_ingredients
             ]
+        
+        # --- Build label using pre-loaded data ---
+        recipe_pref_names = {pref_recipe.preference.pref_name 
+                             for pref_recipe in recipe.pref_recipes 
+                             if pref_recipe.preference and pref_recipe.preference.pref_name}
+        label_dict = all_pref_names_base.copy()
+        for name in recipe_pref_names:
+            if name in label_dict:
+                label_dict[name] = True
+
         result_list.append(RecipeSchema(
             recipe_id=recipe.recipe_id,
             recipe_name=recipe.recipe_name,
@@ -111,7 +161,8 @@ def get_user_saved_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
             fat=recipe.fat,
             protein=recipe.protein,
             carb=recipe.carb,
-            category=recipe.category
+            category=recipe.category,
+            label=label_dict
         ))
     return result_list
 
@@ -148,10 +199,17 @@ def get_user_liked_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
     liked_recipes = db.query(Recipe)\
         .join(LikedRecipe)\
         .filter(LikedRecipe.user_id == user_id)\
-        .options(joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient))\
+        .options(
+            joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient),
+            joinedload(Recipe.pref_recipes).joinedload(PrefRecipe.preference)
+        )\
         .all()
     
     result_list = []
+    # --- Pre-fetch all preferences once outside the loop ---
+    all_prefs = db.query(Preference).all()
+    all_pref_names_base = {pref.pref_name: False for pref in all_prefs if pref.pref_name}
+
     for recipe in liked_recipes:
         ingredients_list = []
         if recipe.recipe_ingredients:
@@ -162,6 +220,16 @@ def get_user_liked_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
                     unit=ri.unit
                 ) for ri in recipe.recipe_ingredients
             ]
+        
+        # --- Build label using pre-loaded data ---
+        recipe_pref_names = {pref_recipe.preference.pref_name 
+                             for pref_recipe in recipe.pref_recipes 
+                             if pref_recipe.preference and pref_recipe.preference.pref_name}
+        label_dict = all_pref_names_base.copy()
+        for name in recipe_pref_names:
+            if name in label_dict:
+                label_dict[name] = True
+
         result_list.append(RecipeSchema(
             recipe_id=recipe.recipe_id,
             recipe_name=recipe.recipe_name,
@@ -172,7 +240,8 @@ def get_user_liked_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
             fat=recipe.fat,
             protein=recipe.protein,
             carb=recipe.carb,
-            category=recipe.category
+            category=recipe.category,
+            label=label_dict
         ))
     return result_list
 
@@ -245,10 +314,17 @@ def get_user_disliked_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
     disliked_recipes = db.query(Recipe)\
         .join(DislikedRecipe, Recipe.recipe_id == DislikedRecipe.recipe_id.cast(Integer))\
         .filter(DislikedRecipe.user_id == user_id)\
-        .options(joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient))\
+        .options(
+            joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient),
+            joinedload(Recipe.pref_recipes).joinedload(PrefRecipe.preference)
+        )\
         .all()
     
     result_list = []
+    # --- Pre-fetch all preferences once outside the loop ---
+    all_prefs = db.query(Preference).all()
+    all_pref_names_base = {pref.pref_name: False for pref in all_prefs if pref.pref_name}
+
     for recipe in disliked_recipes:
         ingredients_list = []
         if recipe.recipe_ingredients:
@@ -259,6 +335,16 @@ def get_user_disliked_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
                     unit=ri.unit
                 ) for ri in recipe.recipe_ingredients
             ]
+        
+        # --- Build label using pre-loaded data ---
+        recipe_pref_names = {pref_recipe.preference.pref_name 
+                             for pref_recipe in recipe.pref_recipes 
+                             if pref_recipe.preference and pref_recipe.preference.pref_name}
+        label_dict = all_pref_names_base.copy()
+        for name in recipe_pref_names:
+            if name in label_dict:
+                label_dict[name] = True
+
         result_list.append(RecipeSchema(
             recipe_id=recipe.recipe_id,
             recipe_name=recipe.recipe_name,
@@ -269,7 +355,8 @@ def get_user_disliked_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
             fat=recipe.fat,
             protein=recipe.protein,
             carb=recipe.carb,
-            category=recipe.category
+            category=recipe.category,
+            label=label_dict
         ))
     return result_list
 
@@ -452,36 +539,33 @@ def get_surprise_recipe_id(db: Session, user_id: str) -> RecipeSchema:
 def get_user_recommendations(db: Session, user_id: str, limit: int = 10) -> List[RecipeSchema]:
     """Kullanıcı için Qdrant vektör araması kullanarak tarif önerileri getirir."""
     try:
-        # Qdrant servisini başlat
-        # Not: Ayarlar (settings) doğrudan import edildi, bu büyük uygulamalarda
-        # dependency injection ile daha iyi yönetilebilir.
         qdrant_service = QdrantService(config=settings)
-
-        # Qdrant'tan önerilen tarif bilgilerini (ID ve payload) al
-        # recommend_recipe, beğenilmeyenleri zaten filtreliyor olmalı.
         recommended_data = qdrant_service.recommend_recipe(user_id=int(user_id), limit=limit)
 
         if not recommended_data:
             logger.info(f"No recommendations found for user {user_id} from Qdrant.")
             return []
 
-        # Önerilen tariflerin ID'lerini çıkar
         recommended_ids = [item['id'] for item in recommended_data]
         
         if not recommended_ids:
             return []
 
-        # Veritabanından tam tarif detaylarını çek
         recipes = db.query(Recipe)\
             .filter(Recipe.recipe_id.in_(recommended_ids))\
-            .options(joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient))\
+            .options(
+                joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient),
+                joinedload(Recipe.pref_recipes).joinedload(PrefRecipe.preference)
+            )\
             .all()
         
-        # Qdrant'tan gelen sırayı korumak için ID'ye göre map oluştur
         recipe_map = {recipe.recipe_id: recipe for recipe in recipes}
         
-        # Sonuçları Qdrant sırasına göre ve RecipeSchema formatında oluştur
         ordered_recipes = []
+        # --- Pre-fetch all preferences once outside the loop ---
+        all_prefs = db.query(Preference).all()
+        all_pref_names_base = {pref.pref_name: False for pref in all_prefs if pref.pref_name}
+
         for rec_id in recommended_ids:
             if rec_id in recipe_map:
                 recipe = recipe_map[rec_id]
@@ -494,6 +578,16 @@ def get_user_recommendations(db: Session, user_id: str, limit: int = 10) -> List
                             unit=ri.unit
                         ) for ri in recipe.recipe_ingredients
                     ]
+                
+                # --- Build label using pre-loaded data ---
+                recipe_pref_names = {pref_recipe.preference.pref_name 
+                                     for pref_recipe in recipe.pref_recipes 
+                                     if pref_recipe.preference and pref_recipe.preference.pref_name}
+                label_dict = all_pref_names_base.copy()
+                for name in recipe_pref_names:
+                    if name in label_dict:
+                        label_dict[name] = True
+                
                 ordered_recipes.append(RecipeSchema(
                     recipe_id=recipe.recipe_id,
                     recipe_name=recipe.recipe_name,
@@ -504,7 +598,8 @@ def get_user_recommendations(db: Session, user_id: str, limit: int = 10) -> List
                     fat=recipe.fat,
                     protein=recipe.protein,
                     carb=recipe.carb,
-                    category=recipe.category
+                    category=recipe.category,
+                    label=label_dict
                 ))
             else:
                 logger.warning(f"Recipe ID {rec_id} recommended by Qdrant but not found in DB.")
@@ -512,12 +607,8 @@ def get_user_recommendations(db: Session, user_id: str, limit: int = 10) -> List
         return ordered_recipes
 
     except ValueError as e:
-        # Qdrant servisi veya DB sorgusu sırasında beklenen hatalar (örn. kullanıcı bulunamadı)
         logger.error(f"Error getting recommendations for user {user_id}: {e}")
-        raise # API katmanının işlemesi için hatayı tekrar yükselt
+        raise
     except Exception as e:
-        # Beklenmedik diğer hatalar
         logger.exception(f"Unexpected error getting recommendations for user {user_id}: {e}")
-        # Beklenmedik hatalarda boş liste dönmek daha güvenli olabilir veya hatayı yükseltmek.
-        # Şimdilik boş liste dönelim.
         return [] 

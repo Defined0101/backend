@@ -13,6 +13,7 @@ class Recipe(BaseModel):
     protein: Optional[float] = None
     carb: Optional[float] = None
     category: Optional[int] = None
+    label: Optional[Dict[str, bool]] = None
 
     class Config:
         from_attributes = True
