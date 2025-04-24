@@ -135,8 +135,8 @@ class QdrantService:
 
         try:
             self.client.delete(
-                collection_name=self.user_collection,
-                points_selector={"points": [int(user_id)]},
+                self.user_collection,     # 1. arg. → collection_name
+                [int(user_id)],           # 2. arg. → points_selector (ID listesi)
                 wait=True
             )
             return {"status": "deleted", "collection": self.user_collection, "id": user_id}
