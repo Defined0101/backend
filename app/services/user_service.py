@@ -22,12 +22,12 @@ class UserService:
     @staticmethod
     def create_user(db: Session, user: UserCreate) -> User:
         """Insert a new user; raise if e‑mail already exists."""
-        if db.query(User).filter(User.e_mail == user.email).first():
+        if db.query(User).filter(User.e_mail == user.e_mail).first():
             raise ValueError("E‑mail already registered")  # FastAPI turns this into 400
         db_user = User(
-            user_id=str(uuid.uuid4()),
-            user_name=user.name,
-            e_mail=user.email,
+            user_id=user.user_id,
+            user_name=user.user_name,
+            e_mail=user.e_mail,
         )
         db.add(db_user)
         db.commit()

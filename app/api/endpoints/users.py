@@ -31,7 +31,7 @@ async def get_all_users(
     """
     Tüm kullanıcıları listele
     """
-    return user_service.get_users(db, skip=skip, limit=limit)
+    return user_service.UserService.get_users(db, skip=skip, limit=limit)
 
 @router.get("/{user_id}", 
     response_model=UserResponse,
@@ -54,7 +54,7 @@ async def get_user(
     """
     Belirli bir kullanıcının bilgilerini getir
     """
-    user = user_service.get_user(db, user_id)
+    user = user_service.UserService.get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
     return user
@@ -99,7 +99,7 @@ async def create_user(
     """
     Yeni kullanıcı oluştur
     """
-    return user_service.create_user(db, user_data)
+    return user_service.UserService.create_user(db, user_data)
 
 @router.put("/{user_id}", 
     response_model=UserResponse,
@@ -136,10 +136,10 @@ async def update_user(
     """
     Kullanıcı bilgilerini güncelle
     """
-    user = user_service.get_user(db, user_id)
+    user = user_service.UserService.get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
-    return user_service.update_user(db, user_id, user_update)
+    return user_service.UserService.update_user(db, user_id, user_update)
 
 @router.delete("/{user_id}",
     summary="Delete User",
@@ -161,8 +161,8 @@ async def delete_user(
     """
     Kullanıcıyı sil
     """
-    user = user_service.get_user(db, user_id)
+    user = user_service.UserService.get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
-    user_service.delete_user(db, user_id)
+    user_service.UserService.delete_user(db, user_id)
     return {"message": "Kullanıcı başarıyla silindi"}
