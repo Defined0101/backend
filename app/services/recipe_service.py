@@ -1,6 +1,7 @@
-from sqlalchemy.orm import Session
-from app.models.models import Recipe, RecipeIngr, SavedRecipes, LikedRecipe, User, DislikedRecipe
+from sqlalchemy.orm import Session, joinedload
+from app.models.models import Recipe, RecipeIngr, SavedRecipes, LikedRecipe, User, DislikedRecipe, Ingredient as IngredientModel
 from app.schemas.recipe_schema import Recipe as RecipeSchema
+from app.schemas.ingredient_schema import RecipeIngredientDetail
 from typing import Dict, List, Any, Union
 from sqlalchemy.sql import func
 from sqlalchemy import Integer, text
@@ -15,57 +16,69 @@ logger = logging.getLogger(__name__)
 
 def get_recipe_details(db: Session, recipe_id: int) -> RecipeSchema:
     """Tarif detaylarını getir"""
-    recipe = db.query(Recipe).filter(Recipe.recipe_id == recipe_id).first()
+    recipe = db.query(Recipe)\
+        .options(joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient))\
+        .filter(Recipe.recipe_id == recipe_id).first()
     if recipe is None:
         raise ValueError(f"Recipe with id {recipe_id} not found")
     
-    # SQLAlchemy modelini dict'e çevir
-    recipe_dict = {
-        "recipe_id": recipe.recipe_id,
-        "recipe_name": recipe.recipe_name,
-        "instruction": recipe.instruction,
-        "ingredient": recipe.ingredient,
-        "total_time": recipe.total_time,
-        "calories": recipe.calories,
-        "fat": recipe.fat,
-        "protein": recipe.protein,
-        "carb": recipe.carb,
-        "category": recipe.category
-    }
-    
-    # Dict'i Pydantic modeline çevir
-    return RecipeSchema(**recipe_dict)
+    # Extract ingredients using the relationship
+    ingredients_list = []
+    if recipe.recipe_ingredients:
+        ingredients_list = [
+            RecipeIngredientDetail(
+                name=ri.ingredient.ingr_name,
+                quantity=ri.quantity,
+                unit=ri.unit
+            ) for ri in recipe.recipe_ingredients
+        ]
+
+    # Create the RecipeSchema, using the fetched ingredients list
+    recipe_data = RecipeSchema(
+        recipe_id=recipe.recipe_id,
+        recipe_name=recipe.recipe_name,
+        instruction=recipe.instruction,
+        ingredient=ingredients_list,
+        total_time=recipe.total_time,
+        calories=recipe.calories,
+        fat=recipe.fat,
+        protein=recipe.protein,
+        carb=recipe.carb,
+        category=recipe.category
+    )
+    return recipe_data
 
 def get_recipe_card(db: Session, recipe_id: int, fields: Union[List[str], str]) -> Dict[str, Any]:
     """Tarif kartı bilgilerini getir"""
-    # Eğer fields bir string ise, virgülle ayrılmış liste olarak böl
     if isinstance(fields, str):
         fields = [f.strip() for f in fields.split(',')]
     
-    # Tarifi getir
-    recipe = db.query(Recipe).filter(Recipe.recipe_id == recipe_id).first()
+    # Determine if related data needs loading
+    query_options = []
+    if 'ingredients' in fields:
+        query_options.append(joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient))
+
+    recipe = db.query(Recipe).options(*query_options).filter(Recipe.recipe_id == recipe_id).first()
     if recipe is None:
         raise ValueError(f"Recipe with id {recipe_id} not found")
     
-    # İstenen alanları döndür
     result = {}
-    recipe_dict = vars(recipe)
+    recipe_dict = {c.name: getattr(recipe, c.name) for c in recipe.__table__.columns if c.name != 'ingredient'}
+
     for field in fields:
-        if field in recipe_dict:
+        if field == 'ingredients':
+            ingredients_list = []
+            if recipe.recipe_ingredients:
+                ingredients_list = [
+                    RecipeIngredientDetail(
+                        name=ri.ingredient.ingr_name,
+                        quantity=ri.quantity,
+                        unit=ri.unit
+                    ) for ri in recipe.recipe_ingredients
+                ]
+            result['ingredients'] = ingredients_list
+        elif field in recipe_dict:
             result[field] = recipe_dict[field]
-    
-    # Eğer malzemeler istendiyse, recipe_ingr tablosundan malzemeleri getir
-    if 'ingredients' in fields:
-        ingredients = db.query(RecipeIngr)\
-            .filter(RecipeIngr.recipe_id == recipe_id)\
-            .all()
-        result['ingredients'] = [
-            {
-                'ingr_id': ingr.ingr_id,
-                'quantity': ingr.quantity,
-                'unit': ingr.unit
-            } for ingr in ingredients
-        ]
     
     return result
 
@@ -74,20 +87,33 @@ def get_user_saved_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
     saved_recipes = db.query(Recipe)\
         .join(SavedRecipes)\
         .filter(SavedRecipes.user_id == user_id)\
+        .options(joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient))\
         .all()
     
-    return [RecipeSchema(
-        recipe_id=recipe.recipe_id,
-        recipe_name=recipe.recipe_name,
-        instruction=recipe.instruction,
-        ingredient=recipe.ingredient,
-        total_time=recipe.total_time,
-        calories=recipe.calories,
-        fat=recipe.fat,
-        protein=recipe.protein,
-        carb=recipe.carb,
-        category=recipe.category
-    ) for recipe in saved_recipes]
+    result_list = []
+    for recipe in saved_recipes:
+        ingredients_list = []
+        if recipe.recipe_ingredients:
+            ingredients_list = [
+                RecipeIngredientDetail(
+                    name=ri.ingredient.ingr_name,
+                    quantity=ri.quantity,
+                    unit=ri.unit
+                ) for ri in recipe.recipe_ingredients
+            ]
+        result_list.append(RecipeSchema(
+            recipe_id=recipe.recipe_id,
+            recipe_name=recipe.recipe_name,
+            instruction=recipe.instruction,
+            ingredient=ingredients_list,
+            total_time=recipe.total_time,
+            calories=recipe.calories,
+            fat=recipe.fat,
+            protein=recipe.protein,
+            carb=recipe.carb,
+            category=recipe.category
+        ))
+    return result_list
 
 def set_user_saved_recipes(db: Session, user_id: str, recipe_ids: List[int]):
     """Kullanıcının kaydettiği tarifleri güncelle"""
@@ -115,7 +141,6 @@ def set_user_saved_recipes(db: Session, user_id: str, recipe_ids: List[int]):
 
 def get_user_liked_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
     """Kullanıcının beğendiği tarifleri getir"""
-    # Kullanıcı var mı kontrol et
     user = db.query(User).filter(User.user_id == user_id).first()
     if not user:
         raise ValueError(f"User with id {user_id} not found")
@@ -123,20 +148,33 @@ def get_user_liked_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
     liked_recipes = db.query(Recipe)\
         .join(LikedRecipe)\
         .filter(LikedRecipe.user_id == user_id)\
+        .options(joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient))\
         .all()
     
-    return [RecipeSchema(
-        recipe_id=recipe.recipe_id,
-        recipe_name=recipe.recipe_name,
-        instruction=recipe.instruction,
-        ingredient=recipe.ingredient,
-        total_time=recipe.total_time,
-        calories=recipe.calories,
-        fat=recipe.fat,
-        protein=recipe.protein,
-        carb=recipe.carb,
-        category=recipe.category
-    ) for recipe in liked_recipes]
+    result_list = []
+    for recipe in liked_recipes:
+        ingredients_list = []
+        if recipe.recipe_ingredients:
+            ingredients_list = [
+                RecipeIngredientDetail(
+                    name=ri.ingredient.ingr_name,
+                    quantity=ri.quantity,
+                    unit=ri.unit
+                ) for ri in recipe.recipe_ingredients
+            ]
+        result_list.append(RecipeSchema(
+            recipe_id=recipe.recipe_id,
+            recipe_name=recipe.recipe_name,
+            instruction=recipe.instruction,
+            ingredient=ingredients_list,
+            total_time=recipe.total_time,
+            calories=recipe.calories,
+            fat=recipe.fat,
+            protein=recipe.protein,
+            carb=recipe.carb,
+            category=recipe.category
+        ))
+    return result_list
 
 def like_recipe(db: Session, user_id: str, recipe_id: int):
     """Kullanıcının bir tarifi beğenmesini sağla"""
@@ -200,7 +238,6 @@ def unlike_recipe(db: Session, user_id: str, recipe_id: int):
 
 def get_user_disliked_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
     """Kullanıcının beğenmediği tarifleri getir"""
-    # Kullanıcı var mı kontrol et
     user = db.query(User).filter(User.user_id == user_id).first()
     if not user:
         raise ValueError(f"User with id {user_id} not found")
@@ -208,21 +245,33 @@ def get_user_disliked_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
     disliked_recipes = db.query(Recipe)\
         .join(DislikedRecipe, Recipe.recipe_id == DislikedRecipe.recipe_id.cast(Integer))\
         .filter(DislikedRecipe.user_id == user_id)\
+        .options(joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient))\
         .all()
     
-    # TODO: Pydantic şeması Recipe yerine daha minimal bir şey olabilir mi?
-    return [RecipeSchema(
-        recipe_id=recipe.recipe_id,
-        recipe_name=recipe.recipe_name,
-        instruction=recipe.instruction,
-        ingredient=recipe.ingredient,
-        total_time=recipe.total_time,
-        calories=recipe.calories,
-        fat=recipe.fat,
-        protein=recipe.protein,
-        carb=recipe.carb,
-        category=recipe.category
-    ) for recipe in disliked_recipes]
+    result_list = []
+    for recipe in disliked_recipes:
+        ingredients_list = []
+        if recipe.recipe_ingredients:
+            ingredients_list = [
+                RecipeIngredientDetail(
+                    name=ri.ingredient.ingr_name,
+                    quantity=ri.quantity,
+                    unit=ri.unit
+                ) for ri in recipe.recipe_ingredients
+            ]
+        result_list.append(RecipeSchema(
+            recipe_id=recipe.recipe_id,
+            recipe_name=recipe.recipe_name,
+            instruction=recipe.instruction,
+            ingredient=ingredients_list,
+            total_time=recipe.total_time,
+            calories=recipe.calories,
+            fat=recipe.fat,
+            protein=recipe.protein,
+            carb=recipe.carb,
+            category=recipe.category
+        ))
+    return result_list
 
 def dislike_recipe(db: Session, user_id: str, recipe_id: int):
     """Kullanıcının bir tarifi beğenmemesini sağla"""
@@ -423,7 +472,10 @@ def get_user_recommendations(db: Session, user_id: str, limit: int = 10) -> List
             return []
 
         # Veritabanından tam tarif detaylarını çek
-        recipes = db.query(Recipe).filter(Recipe.recipe_id.in_(recommended_ids)).all()
+        recipes = db.query(Recipe)\
+            .filter(Recipe.recipe_id.in_(recommended_ids))\
+            .options(joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient))\
+            .all()
         
         # Qdrant'tan gelen sırayı korumak için ID'ye göre map oluştur
         recipe_map = {recipe.recipe_id: recipe for recipe in recipes}
@@ -433,11 +485,20 @@ def get_user_recommendations(db: Session, user_id: str, limit: int = 10) -> List
         for rec_id in recommended_ids:
             if rec_id in recipe_map:
                 recipe = recipe_map[rec_id]
+                ingredients_list = []
+                if recipe.recipe_ingredients:
+                    ingredients_list = [
+                        RecipeIngredientDetail(
+                            name=ri.ingredient.ingr_name,
+                            quantity=ri.quantity,
+                            unit=ri.unit
+                        ) for ri in recipe.recipe_ingredients
+                    ]
                 ordered_recipes.append(RecipeSchema(
                     recipe_id=recipe.recipe_id,
                     recipe_name=recipe.recipe_name,
                     instruction=recipe.instruction,
-                    ingredient=recipe.ingredient,
+                    ingredient=ingredients_list,
                     total_time=recipe.total_time,
                     calories=recipe.calories,
                     fat=recipe.fat,

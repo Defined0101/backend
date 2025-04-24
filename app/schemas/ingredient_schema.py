@@ -20,7 +20,7 @@ class UserAllergies(BaseModel):
 
 class IngredientBase(BaseModel):
     ingr_id: int
-    ingr_name: str
+    name: str
     default_unit: str
 
     class Config:
@@ -33,4 +33,10 @@ class IngredientResponse(BaseModel):
     page_size: int
     total_pages: int
     has_next: bool
-    has_previous: bool 
+    has_previous: bool
+
+# Schema for representing an ingredient within a recipe context
+class RecipeIngredientDetail(BaseModel):
+    name: str
+    quantity: Optional[float] = None
+    unit: Optional[str] = None 

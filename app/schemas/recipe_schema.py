@@ -1,11 +1,12 @@
 from pydantic import BaseModel
 from typing import List, Dict, Optional, Union, Any
+from .ingredient_schema import RecipeIngredientDetail
 
 class Recipe(BaseModel):
     recipe_id: int
     recipe_name: str
     instruction: Optional[str] = None
-    ingredient: Optional[str] = None
+    ingredient: Optional[List[RecipeIngredientDetail]] = None
     total_time: Optional[int] = None
     calories: Optional[float] = None
     fat: Optional[float] = None
