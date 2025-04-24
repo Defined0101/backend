@@ -30,9 +30,9 @@ router = APIRouter(tags=["ingredients"])
     Response:
     {
         "items": [
-            {"ingr_id": 1, "ingr_name": "apple", "default_unit": "piece"},
-            {"ingr_id": 2, "ingr_name": "banana", "default_unit": "piece"},
-            {"ingr_id": 3, "ingr_name": "flour", "default_unit": "g"},
+            {"ingr_id": 1, "name": "apple", "default_unit": "piece"},
+            {"ingr_id": 2, "name": "banana", "default_unit": "piece"},
+            {"ingr_id": 3, "name": "flour", "default_unit": "g"},
             ...
         ],
         "total": 500,
@@ -69,12 +69,12 @@ async def get_ingredients(
         "user_id": "user123",
         "ingredients": [
             {
-                "ingr_name": "tomato",
+                "name": "tomato",
                 "quantity": 5,
                 "unit": "piece"
             },
             {
-                "ingr_name": "onion",
+                "name": "onion",
                 "quantity": 2,
                 "unit": "piece"
             }
@@ -107,12 +107,12 @@ async def get_user_ingredients(
         "user_id": "user123",
         "ingredients": [
             {
-                "ingr_name": "tomato",
+                "name": "tomato",
                 "quantity": 5,
                 "unit": "piece"
             },
             {
-                "ingr_name": "onion",
+                "name": "onion",
                 "quantity": 2,
                 "unit": "piece"
             }
@@ -125,8 +125,8 @@ async def set_user_ingredients(
         example={
             "user_id": "user123",
             "ingredients": [
-                {"ingr_name": "tomato", "quantity": 5.0, "unit": "piece"},
-                {"ingr_name": "onion", "quantity": 2.0, "unit": "piece"}
+                {"name": "tomato", "quantity": 5.0, "unit": "piece"},
+                {"name": "onion", "quantity": 2.0, "unit": "piece"}
             ]
         }),
     db: Session = Depends(get_db)
