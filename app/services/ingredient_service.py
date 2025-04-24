@@ -55,43 +55,67 @@ def set_user_allergies(db: Session, user_allergies: UserAllergies) -> List[str]:
     return user_allergies.allergies
 
 def get_user_ingredients(db: Session, user_id: str) -> List[dict]:
-    """Kullanıcının malzemelerini ve miktarlarını getir"""
-    # Materialized view kullan
-    ingredients = db.query(UserInventoryView.ingr_name, UserInventoryView.quantity)\
+    """Kullanıcının malzemelerini, miktarlarını ve birimlerini getir"""
+    # Materialized view ve Ingredient tablosunu ingr_id üzerinden join et
+    ingredients_data = db.query(
+            UserInventoryView.ingr_name,
+            UserInventoryView.quantity,
+            UserInventoryView.unit,          # View'daki unit sütununu da seç
+            Ingredient.default_unit          # Ingredient tablosundaki default_unit'i de seç
+        )\
+        .join(Ingredient, UserInventoryView.ingr_id == Ingredient.ingr_id)\
         .filter(UserInventoryView.user_id == user_id)\
         .order_by(UserInventoryView.ingr_name)\
         .all()
-    return [{"ingredient_name": name, "quantity": float(qty) if qty else 1.0} 
-            for name, qty in ingredients]
+
+    result = []
+    for name, qty, user_unit, default_unit in ingredients_data:
+        # Önce view'daki unit değerine bak, null ise ingredient'teki default_unit'e bak, 
+        # o da null ise "piece" kullan
+        final_unit = user_unit or default_unit or "piece"
+        
+        result.append({
+            "ingr_name": name,
+            "quantity": float(qty) if qty else 1.0,
+            "unit": final_unit
+        })
+    return result
 
 def set_user_ingredients(db: Session, user_ingredients: UserIngredients) -> List[dict]:
-    """Kullanıcının malzemelerini güncelle"""
+    """Kullanıcının malzemelerini güncelle ve birimleri de içeren listeyi döndür"""
     # Önce mevcut malzemeleri sil
     db.query(Inventory).filter(Inventory.user_id == user_ingredients.user_id).delete()
-    
+
     result = []
     # Yeni malzemeleri ekle
     for item in user_ingredients.ingredients:
         # Malzeme var mı kontrol et
-        ingredient = db.query(Ingredient).filter(Ingredient.ingr_name == item.ingredient_name).first()
+        ingredient = db.query(Ingredient).filter(Ingredient.ingr_name == item.ingr_name).first()
         if not ingredient:
-            # Malzeme yoksa oluştur
-            ingredient = Ingredient(ingr_name=item.ingredient_name)
+            # Malzeme yoksa oluştur (default_unit null olacak)
+            ingredient = Ingredient(ingr_name=item.ingr_name)
             db.add(ingredient)
             db.flush()  # ID'yi almak için flush
+
+        # Kullanıcının belirttiği unit'i kullan, yoksa ingredient'taki default'u, o da yoksa "piece"
+        unit = item.unit or ingredient.default_unit or "piece"
         
-        # Malzemeyi envantere ekle
+        # Malzemeyi envantere ekle - unit değeri de yazılıyor
         inventory = Inventory(
             user_id=user_ingredients.user_id,
-            ingr_id=str(ingredient.ingr_id),  # inventory tablosunda ingr_id text olarak tanımlı
-            quantity=item.quantity if item.quantity else 1.0
+            ingr_id=ingredient.ingr_id,
+            quantity=item.quantity if item.quantity else 1.0,
+            unit=unit  # unit değerini de ekle
         )
         db.add(inventory)
+
+        # Sonuç listesine aynı unit değerini ekle
         result.append({
-            "ingredient_name": item.ingredient_name,
-            "quantity": float(item.quantity) if item.quantity else 1.0
+            "ingr_name": item.ingr_name,
+            "quantity": float(item.quantity) if item.quantity else 1.0,
+            "unit": unit
         })
-    
+
     db.commit()
     return result
 

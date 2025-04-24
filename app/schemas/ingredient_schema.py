@@ -6,8 +6,9 @@ class IngredientCreate(BaseModel):
     ingr_name: str
 
 class InventoryItem(BaseModel):
-    ingredient_name: str
+    ingr_name: str
     quantity: Optional[Decimal] = Decimal('1.0')
+    unit: str
 
 class UserIngredients(BaseModel):
     user_id: str

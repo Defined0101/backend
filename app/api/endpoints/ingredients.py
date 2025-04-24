@@ -69,12 +69,14 @@ async def get_ingredients(
         "user_id": "user123",
         "ingredients": [
             {
-                "ingredient_name": "tomato",
-                "quantity": 5
+                "ingr_name": "tomato",
+                "quantity": 5,
+                "unit": "piece"
             },
             {
-                "ingredient_name": "onion",
-                "quantity": 2
+                "ingr_name": "onion",
+                "quantity": 2,
+                "unit": "piece"
             }
         ]
     }
@@ -105,25 +107,28 @@ async def get_user_ingredients(
         "user_id": "user123",
         "ingredients": [
             {
-                "ingredient_name": "tomato",
-                "quantity": 5
+                "ingr_name": "tomato",
+                "quantity": 5,
+                "unit": "piece"
             },
             {
-                "ingredient_name": "onion",
-                "quantity": 2
+                "ingr_name": "onion",
+                "quantity": 2,
+                "unit": "piece"
             }
         ]
     }
     ```
     """)
 async def set_user_ingredients(
-    ingredients: UserIngredients = Body(..., example={
-        "user_id": "user123",
-        "ingredients": [
-            {"ingredient_name": "tomato", "quantity": 5},
-            {"ingredient_name": "onion", "quantity": 2}
-        ]
-    }),
+    ingredients: UserIngredients = Body(...,
+        example={
+            "user_id": "user123",
+            "ingredients": [
+                {"ingr_name": "tomato", "quantity": 5.0, "unit": "piece"},
+                {"ingr_name": "onion", "quantity": 2.0, "unit": "piece"}
+            ]
+        }),
     db: Session = Depends(get_db)
 ):
     user = ingredient_service.get_user(db, ingredients.user_id)

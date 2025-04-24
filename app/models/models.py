@@ -151,8 +151,9 @@ class Inventory(Base):
     __tablename__ = "inventory"
     
     user_id = Column(Text, ForeignKey("users.user_id"), primary_key=True)
-    ingr_id = Column(Text, primary_key=True)
+    ingr_id = Column(Integer, ForeignKey("ingredient.ingr_id"), primary_key=True)
     quantity = Column(Numeric)
+    unit = Column(String, nullable=True)
     
     user = relationship("User", backref="inventory_items")
     
@@ -168,6 +169,7 @@ class UserInventoryView(Base):
     __tablename__ = "user_inventory"
     
     user_id = Column(Text, primary_key=True)
-    ingr_id = Column(Text, primary_key=True)
+    ingr_id = Column(Integer, primary_key=True)
     ingr_name = Column(Text)
-    quantity = Column(Numeric) 
+    quantity = Column(Numeric)
+    unit = Column(String, nullable=True) 
