@@ -17,7 +17,7 @@ qdrant = QdrantService(settings)
 @celery_app.task
 def update_recent_users_embeddings():
     """
-    Celery task to update embeddings for users who updated likes/dislikes in the last 5 minutes.
+    Celery task to update embeddings for users who updated likes/dislikes in the last 3 minutes.
     """
     db = None
     try:
@@ -26,9 +26,9 @@ def update_recent_users_embeddings():
         # Query recently changed users (user_id is string)
         sql = text("""
             SELECT DISTINCT user_id FROM (
-                SELECT user_id FROM liked_recipes WHERE updated_at >= NOW() - INTERVAL '5 minutes'
+                SELECT user_id FROM liked_recipes WHERE updated_at >= NOW() - INTERVAL '3 minutes'
                 UNION
-                SELECT user_id FROM disliked_recipes WHERE updated_at >= NOW() - INTERVAL '5 minutes'
+                SELECT user_id FROM disliked_recipes WHERE updated_at >= NOW() - INTERVAL '3 minutes'
             ) AS recent_users
         """)
 

@@ -24,10 +24,10 @@ celery_app.autodiscover_tasks(["app.tasks"])
 # Ensure our task modules are loaded
 import app.tasks.update_embeddings
 
-# Celery Beat: run task every 5 mins
+# Celery Beat: run task every 3 mins
 celery_app.conf.beat_schedule = {
-    "update-embeddings-every-5-min": {
+    "update-embeddings-every-3-min": {
         "task": "app.tasks.update_embeddings.update_recent_users_embeddings",
-        "schedule": crontab(minute="*/5"),
+        "schedule": crontab(minute="*/3"),
     },
 }
