@@ -6,17 +6,17 @@ from app.schemas.ingredient_schema import IngredientCreate, UserIngredients, Ing
 
 def get_ingredient_names(db: Session) -> List[str]:
     """Tüm malzeme isimlerini getir"""
-    ingredients = db.query(Ingredient.name)\
-        .order_by(Ingredient.name)\
+    ingredients = db.query(Ingredient.ingr_name)\
+        .order_by(Ingredient.ingr_name)\
         .all()
     return [ingredient[0] for ingredient in ingredients]
 
 def get_all_allergies(db: Session) -> List[str]:
     """Sistemdeki tüm alerjen malzemeleri getir"""
-    allergies = db.query(Ingredient.name)\
+    allergies = db.query(Ingredient.ingr_name)\
         .join(Allergy, Allergy.ingr_id == Ingredient.ingr_id)\
         .distinct()\
-        .order_by(Ingredient.name)\
+        .order_by(Ingredient.ingr_name)\
         .all()
     return [allergy[0] for allergy in allergies]
 
@@ -37,10 +37,10 @@ def set_user_allergies(db: Session, user_allergies: UserAllergies) -> List[str]:
     # Yeni alerjileri ekle
     for allergy_name in user_allergies.allergies:
         # Malzeme var mı kontrol et
-        ingredient = db.query(Ingredient).filter(Ingredient.name == allergy_name).first()
+        ingredient = db.query(Ingredient).filter(Ingredient.ingr_name == allergy_name).first()
         if not ingredient:
             # Malzeme yoksa oluştur
-            ingredient = Ingredient(name=allergy_name)
+            ingredient = Ingredient(ingr_name=allergy_name)
             db.add(ingredient)
             db.flush()  # ID'yi almak için flush
         
@@ -69,13 +69,13 @@ def get_user_ingredients(db: Session, user_id: str) -> List[dict]:
         .all()
 
     result = []
-    for name_from_view, qty, user_unit, default_unit in ingredients_data:
+    for ingr_name_from_view, qty, user_unit, default_unit in ingredients_data:
         # Önce view'daki unit değerine bak, null ise ingredient'teki default_unit'e bak, 
         # o da null ise "piece" kullan
         final_unit = user_unit or default_unit or "piece"
         
         result.append({
-            "name": name_from_view,
+            "name": ingr_name_from_view,
             "quantity": float(qty) if qty else 1.0,
             "unit": final_unit
         })
@@ -90,10 +90,10 @@ def set_user_ingredients(db: Session, user_ingredients: UserIngredients) -> List
     # Yeni malzemeleri ekle
     for item in user_ingredients.ingredients:
         # Malzeme var mı kontrol et
-        ingredient = db.query(Ingredient).filter(Ingredient.name == item.name).first()
+        ingredient = db.query(Ingredient).filter(Ingredient.ingr_name == item.name).first()
         if not ingredient:
             # Malzeme yoksa oluştur (default_unit null olacak)
-            ingredient = Ingredient(name=item.name)
+            ingredient = Ingredient(ingr_name=item.name)
             db.add(ingredient)
             db.flush()  # ID'yi almak için flush
 
@@ -142,13 +142,13 @@ def get_all_ingredients(db: Session, page: int = 1, page_size: int = 50, search:
     # Arama filtresi
     if search:
         search = f"%{search}%"
-        query = query.filter(Ingredient.name.ilike(search))
+        query = query.filter(Ingredient.ingr_name.ilike(search))
     
     # Toplam kayıt sayısı
     total = query.count()
     
     # Sayfalama
-    query = query.order_by(Ingredient.name)
+    query = query.order_by(Ingredient.ingr_name)
     query = query.offset((page - 1) * page_size).limit(page_size)
     
     # Sonuçları al
