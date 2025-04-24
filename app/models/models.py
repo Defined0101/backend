@@ -4,6 +4,17 @@ from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Text
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
+# Ara Tablo: recipe_cat için model
+class RecipeCategoryLink(Base):
+    __tablename__ = 'recipe_cat'
+    # Varsayılan olarak composite primary key (recipe_id, cat_id)
+    recipe_id = Column(Integer, ForeignKey('recipe.recipe_id'), primary_key=True)
+    cat_id = Column(Integer, ForeignKey('category.category_id'), primary_key=True)
+
+    # İsteğe bağlı: İlişkileri tanımlayabiliriz, ancak servis katmanında doğrudan sorgu da yapabiliriz.
+    # recipe = relationship("Recipe", back_populates="category_link") # Recipe'de category_link tanımlanmalı
+    # category = relationship("Category", back_populates="recipe_links") # Category'de recipe_links tanımlanmalı
+
 class User(Base):
     __tablename__ = "users"
     
@@ -36,8 +47,11 @@ class Category(Base):
     category_id = Column(Integer, primary_key=True, index=True)
     cat_name = Column(String, nullable=True)
     
-    # Category ilişkisi recipe'de Foreign Key olarak belirtilmiş ama
-    # veritabanında kısıtlama (constraint) yok
+    # İlişki kaldırıldı (veya RecipeCategoryLink'e göre güncellenebilir)
+    # recipes = relationship(
+    #     "Recipe",
+    #     back_populates="category"
+    # )
 
 class Recipe(Base):
     __tablename__ = "recipe"
@@ -45,13 +59,12 @@ class Recipe(Base):
     recipe_id = Column(Integer, primary_key=True, index=True)
     recipe_name = Column(String, nullable=True)
     instruction = Column(Text, nullable=True)
-    ingredient = Column(Text, nullable=True)  # Dokümanda bu alan text olarak belirtilmiş
+    ingredient = Column(Text, nullable=True)
     total_time = Column(Integer, nullable=True)
     calories = Column(Float, nullable=True)
     fat = Column(Float, nullable=True)
     protein = Column(Float, nullable=True)
     carb = Column(Float, nullable=True)
-    category = Column(Integer, nullable=True)  # FK constraint yok
     
     # İlişkiler
     recipe_ingredients = relationship("RecipeIngr", back_populates="recipe")

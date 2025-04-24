@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session, joinedload
-from app.models.models import Recipe, RecipeIngr, SavedRecipes, LikedRecipe, User, DislikedRecipe, Ingredient as IngredientModel, Preference, PrefRecipe
+from app.models.models import Recipe, RecipeIngr, SavedRecipes, LikedRecipe, User, DislikedRecipe, Ingredient as IngredientModel, Preference, PrefRecipe, Category as CategoryModel, RecipeCategoryLink
 from app.schemas.recipe_schema import Recipe as RecipeSchema
 from app.schemas.ingredient_schema import RecipeIngredientDetail
-from typing import Dict, List, Any, Union
+from typing import Dict, List, Any, Union, Optional
 from sqlalchemy.sql import func
 from sqlalchemy import Integer, text
 from app.utils.embedding_tracker import mark_user_for_update
@@ -32,8 +32,18 @@ def _build_recipe_label_list(db: Session, recipe: Recipe) -> List[str]:
 
     return sorted(recipe_pref_names)
 
+# --- Yeni Helper: Recipe ID için Category ismini bulma ---
+def _get_category_name_for_recipe(db: Session, recipe_id: int) -> Optional[str]:
+    """Queries recipe_cat and category tables to find the category name for a given recipe_id."""
+    link = db.query(RecipeCategoryLink).filter(RecipeCategoryLink.recipe_id == recipe_id).first()
+    if link and link.cat_id:
+        category = db.query(CategoryModel).filter(CategoryModel.category_id == link.cat_id).first()
+        if category:
+            return category.cat_name
+    return None
+
 def get_recipe_details(db: Session, recipe_id: int) -> RecipeSchema:
-    """Tarif detaylarını getir"""
+    """Tarif detaylarını getir (category string olarak)"""
     recipe = db.query(Recipe)\
         .options(
             joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient),
@@ -46,33 +56,23 @@ def get_recipe_details(db: Session, recipe_id: int) -> RecipeSchema:
     ingredients_list = []
     if recipe.recipe_ingredients:
         ingredients_list = [
-            RecipeIngredientDetail(
-                name=ri.ingredient.ingr_name,
-                quantity=ri.quantity,
-                unit=ri.unit
-            ) for ri in recipe.recipe_ingredients
+            RecipeIngredientDetail.model_validate(ri.ingredient, context={'quantity': ri.quantity, 'unit': ri.unit})
+             for ri in recipe.recipe_ingredients if ri.ingredient
         ]
 
-    # --- Use helper function to build label list ---
     label_list = _build_recipe_label_list(db, recipe)
+    category_name = _get_category_name_for_recipe(db, recipe.recipe_id)
 
-    recipe_data = RecipeSchema(
-        recipe_id=recipe.recipe_id,
-        recipe_name=recipe.recipe_name,
-        instruction=recipe.instruction,
-        ingredient=ingredients_list,
-        total_time=recipe.total_time,
-        calories=recipe.calories,
-        fat=recipe.fat,
-        protein=recipe.protein,
-        carb=recipe.carb,
-        category=recipe.category,
-        label=label_list
-    )
+    # Önce modelden şemayı oluştur
+    recipe_data = RecipeSchema.model_validate(recipe)
+    # Sonra hesaplanan alanları ata (ingredients ismiyle)
+    recipe_data.ingredients = ingredients_list
+    recipe_data.label = label_list
+    recipe_data.category = category_name
     return recipe_data
 
 def get_recipe_card(db: Session, recipe_id: int, fields: Union[List[str], str]) -> Dict[str, Any]:
-    """Tarif kartı bilgilerini getir"""
+    """Tarif kartı bilgilerini getir (category ismi recipe_cat'ten alınır)"""
     if isinstance(fields, str):
         fields = [f.strip() for f in fields.split(',')]
     
@@ -86,66 +86,48 @@ def get_recipe_card(db: Session, recipe_id: int, fields: Union[List[str], str]) 
         raise ValueError(f"Recipe with id {recipe_id} not found")
     
     result = {}
-    recipe_dict = {c.name: getattr(recipe, c.name) for c in recipe.__table__.columns if c.name != 'ingredient'}
+    recipe_dict = {c.name: getattr(recipe, c.name) for c in recipe.__table__.columns}
 
     for field in fields:
         if field == 'ingredients':
-            ingredients_list = []
-            if recipe.recipe_ingredients:
-                ingredients_list = [
-                    RecipeIngredientDetail(
-                        name=ri.ingredient.ingr_name,
-                        quantity=ri.quantity,
-                        unit=ri.unit
-                    ) for ri in recipe.recipe_ingredients
-                ]
-            result['ingredients'] = ingredients_list
+            result['ingredients'] = None # TODO: Ingredient yükleme mantığını gözden geçir
+        elif field == 'category':
+            result['category'] = _get_category_name_for_recipe(db, recipe_id)
         elif field in recipe_dict:
             result[field] = recipe_dict[field]
     
     return result
 
 def get_user_saved_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
-    """Kullanıcının kaydettiği tarifleri getir"""
-    saved_recipes = db.query(Recipe)\
+    """Kullanıcının kaydettiği tarifleri getir (category string olarak)"""
+    saved_recipes_query = db.query(Recipe)\
         .join(SavedRecipes)\
         .filter(SavedRecipes.user_id == user_id)\
         .options(
             joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient),
             joinedload(Recipe.pref_recipes).joinedload(PrefRecipe.preference)
-        )\
-        .all()
+        )
+    saved_recipes = saved_recipes_query.all()
     
     result_list = []
     for recipe in saved_recipes:
         ingredients_list = []
         if recipe.recipe_ingredients:
             ingredients_list = [
-                RecipeIngredientDetail(
-                    name=ri.ingredient.ingr_name,
-                    quantity=ri.quantity,
-                    unit=ri.unit
-                ) for ri in recipe.recipe_ingredients
+                 RecipeIngredientDetail.model_validate(ri.ingredient, context={'quantity': ri.quantity, 'unit': ri.unit})
+                 for ri in recipe.recipe_ingredients if ri.ingredient
             ]
         
-        # --- Build label list directly from pre-loaded data ---
-        label_list = sorted([pref_recipe.preference.pref_name 
-                             for pref_recipe in recipe.pref_recipes 
+        label_list = sorted([pref_recipe.preference.pref_name
+                             for pref_recipe in recipe.pref_recipes
                              if pref_recipe.preference and pref_recipe.preference.pref_name])
+        category_name = _get_category_name_for_recipe(db, recipe.recipe_id)
 
-        result_list.append(RecipeSchema(
-            recipe_id=recipe.recipe_id,
-            recipe_name=recipe.recipe_name,
-            instruction=recipe.instruction,
-            ingredient=ingredients_list,
-            total_time=recipe.total_time,
-            calories=recipe.calories,
-            fat=recipe.fat,
-            protein=recipe.protein,
-            carb=recipe.carb,
-            category=recipe.category,
-            label=label_list
-        ))
+        recipe_data = RecipeSchema.model_validate(recipe)
+        recipe_data.ingredients = ingredients_list
+        recipe_data.label = label_list
+        recipe_data.category = category_name
+        result_list.append(recipe_data)
     return result_list
 
 def set_user_saved_recipes(db: Session, user_id: str, recipe_ids: List[int]):
@@ -173,50 +155,39 @@ def set_user_saved_recipes(db: Session, user_id: str, recipe_ids: List[int]):
         raise ValueError(f"Error saving recipes: {str(e)}")
 
 def get_user_liked_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
-    """Kullanıcının beğendiği tarifleri getir"""
+    """Kullanıcının beğendiği tarifleri getir (category string olarak)"""
     user = db.query(User).filter(User.user_id == user_id).first()
     if not user:
         raise ValueError(f"User with id {user_id} not found")
         
-    liked_recipes = db.query(Recipe)\
+    liked_recipes_query = db.query(Recipe)\
         .join(LikedRecipe)\
         .filter(LikedRecipe.user_id == user_id)\
         .options(
             joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient),
             joinedload(Recipe.pref_recipes).joinedload(PrefRecipe.preference)
-        )\
-        .all()
+        )
+    liked_recipes = liked_recipes_query.all()
     
     result_list = []
     for recipe in liked_recipes:
         ingredients_list = []
         if recipe.recipe_ingredients:
-            ingredients_list = [
-                RecipeIngredientDetail(
-                    name=ri.ingredient.ingr_name,
-                    quantity=ri.quantity,
-                    unit=ri.unit
-                ) for ri in recipe.recipe_ingredients
+             ingredients_list = [
+                 RecipeIngredientDetail.model_validate(ri.ingredient, context={'quantity': ri.quantity, 'unit': ri.unit})
+                 for ri in recipe.recipe_ingredients if ri.ingredient
             ]
         
-        # --- Build label list directly from pre-loaded data ---
-        label_list = sorted([pref_recipe.preference.pref_name 
-                             for pref_recipe in recipe.pref_recipes 
+        label_list = sorted([pref_recipe.preference.pref_name
+                             for pref_recipe in recipe.pref_recipes
                              if pref_recipe.preference and pref_recipe.preference.pref_name])
+        category_name = _get_category_name_for_recipe(db, recipe.recipe_id)
 
-        result_list.append(RecipeSchema(
-            recipe_id=recipe.recipe_id,
-            recipe_name=recipe.recipe_name,
-            instruction=recipe.instruction,
-            ingredient=ingredients_list,
-            total_time=recipe.total_time,
-            calories=recipe.calories,
-            fat=recipe.fat,
-            protein=recipe.protein,
-            carb=recipe.carb,
-            category=recipe.category,
-            label=label_list
-        ))
+        recipe_data = RecipeSchema.model_validate(recipe)
+        recipe_data.ingredients = ingredients_list
+        recipe_data.label = label_list
+        recipe_data.category = category_name
+        result_list.append(recipe_data)
     return result_list
 
 def like_recipe(db: Session, user_id: str, recipe_id: int):
@@ -280,50 +251,39 @@ def unlike_recipe(db: Session, user_id: str, recipe_id: int):
         raise ValueError(f"Error unliking recipe: {str(e)}")
 
 def get_user_disliked_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
-    """Kullanıcının beğenmediği tarifleri getir"""
+    """Kullanıcının beğenmediği tarifleri getir (category string olarak)"""
     user = db.query(User).filter(User.user_id == user_id).first()
     if not user:
         raise ValueError(f"User with id {user_id} not found")
         
-    disliked_recipes = db.query(Recipe)\
-        .join(DislikedRecipe, Recipe.recipe_id == DislikedRecipe.recipe_id.cast(Integer))\
+    disliked_recipes_query = db.query(Recipe)\
+        .join(DislikedRecipe)\
         .filter(DislikedRecipe.user_id == user_id)\
         .options(
             joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngr.ingredient),
             joinedload(Recipe.pref_recipes).joinedload(PrefRecipe.preference)
-        )\
-        .all()
+        )
+    disliked_recipes = disliked_recipes_query.all()
     
     result_list = []
     for recipe in disliked_recipes:
         ingredients_list = []
         if recipe.recipe_ingredients:
-            ingredients_list = [
-                RecipeIngredientDetail(
-                    name=ri.ingredient.ingr_name,
-                    quantity=ri.quantity,
-                    unit=ri.unit
-                ) for ri in recipe.recipe_ingredients
+             ingredients_list = [
+                 RecipeIngredientDetail.model_validate(ri.ingredient, context={'quantity': ri.quantity, 'unit': ri.unit})
+                 for ri in recipe.recipe_ingredients if ri.ingredient
             ]
         
-        # --- Build label list directly from pre-loaded data ---
-        label_list = sorted([pref_recipe.preference.pref_name 
-                             for pref_recipe in recipe.pref_recipes 
+        label_list = sorted([pref_recipe.preference.pref_name
+                             for pref_recipe in recipe.pref_recipes
                              if pref_recipe.preference and pref_recipe.preference.pref_name])
+        category_name = _get_category_name_for_recipe(db, recipe.recipe_id)
 
-        result_list.append(RecipeSchema(
-            recipe_id=recipe.recipe_id,
-            recipe_name=recipe.recipe_name,
-            instruction=recipe.instruction,
-            ingredient=ingredients_list,
-            total_time=recipe.total_time,
-            calories=recipe.calories,
-            fat=recipe.fat,
-            protein=recipe.protein,
-            carb=recipe.carb,
-            category=recipe.category,
-            label=label_list
-        ))
+        recipe_data = RecipeSchema.model_validate(recipe)
+        recipe_data.ingredients = ingredients_list
+        recipe_data.label = label_list
+        recipe_data.category = category_name
+        result_list.append(recipe_data)
     return result_list
 
 def dislike_recipe(db: Session, user_id: str, recipe_id: int):
@@ -534,11 +494,8 @@ def get_user_recommendations(db: Session, user_id: str, limit: int = 10) -> List
                 ingredients_list = []
                 if recipe.recipe_ingredients:
                     ingredients_list = [
-                        RecipeIngredientDetail(
-                            name=ri.ingredient.ingr_name,
-                            quantity=ri.quantity,
-                            unit=ri.unit
-                        ) for ri in recipe.recipe_ingredients
+                        RecipeIngredientDetail.model_validate(ri.ingredient, context={'quantity': ri.quantity, 'unit': ri.unit})
+                        for ri in recipe.recipe_ingredients if ri.ingredient
                     ]
                 
                 # --- Build label list directly from pre-loaded data ---
@@ -546,19 +503,14 @@ def get_user_recommendations(db: Session, user_id: str, limit: int = 10) -> List
                                      for pref_recipe in recipe.pref_recipes 
                                      if pref_recipe.preference and pref_recipe.preference.pref_name])
                 
-                ordered_recipes.append(RecipeSchema(
-                    recipe_id=recipe.recipe_id,
-                    recipe_name=recipe.recipe_name,
-                    instruction=recipe.instruction,
-                    ingredient=ingredients_list,
-                    total_time=recipe.total_time,
-                    calories=recipe.calories,
-                    fat=recipe.fat,
-                    protein=recipe.protein,
-                    carb=recipe.carb,
-                    category=recipe.category,
-                    label=label_list
-                ))
+                category_name = _get_category_name_for_recipe(db, recipe.recipe_id)
+                
+                # Düzeltme: Önce validate et, sonra ata
+                recipe_data = RecipeSchema.model_validate(recipe)
+                recipe_data.ingredients = ingredients_list
+                recipe_data.label = label_list
+                recipe_data.category = category_name
+                ordered_recipes.append(recipe_data)
             else:
                 logger.warning(f"Recipe ID {rec_id} recommended by Qdrant but not found in DB.")
 

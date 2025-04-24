@@ -6,13 +6,13 @@ class Recipe(BaseModel):
     recipe_id: int
     recipe_name: str
     instruction: Optional[str] = None
-    ingredient: Optional[List[RecipeIngredientDetail]] = None
+    ingredients: Optional[List[RecipeIngredientDetail]] = None
     total_time: Optional[int] = None
     calories: Optional[float] = None
     fat: Optional[float] = None
     protein: Optional[float] = None
     carb: Optional[float] = None
-    category: Optional[int] = None
+    category: Optional[str] = None
     label: Optional[List[str]] = None
 
     class Config:
