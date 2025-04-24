@@ -36,7 +36,7 @@ class QdrantService:
         prefer_grpc = os.getenv("PREFER_GRPC", "false").lower() in ("1","true","yes")
         timeout    = int(os.getenv("QDRANT_TIMEOUT", 300))
 
-        # HTTP URL’i hazırlıyoruz
+        # HTTP URL'i hazırlıyoruz
         url = f"http://{host}:{port}"
 
         logging.info(f"Initializing QdrantClient → url={url}, grpc_port={grpc_port}, prefer_grpc={prefer_grpc}")
@@ -303,21 +303,26 @@ class QdrantService:
     # Process scroll results for only filter results. No similarity check
     def _process_scroll_results(
         self,
-        points: List[qdrant_client.models.ScrollResult],
+        points: List[qdrant_client.models.Record],
     ) -> List[dict]:
         results = []
+        if not points:
+            return []
+
         for point in points:
             try:
+                payload = point.payload or {}
                 results.append(
                     {
-                        "name": point.payload.get("Name", "No name available"),
-                        "category": point.payload.get("Category", "No category available"),
-                        "label": point.payload.get("Label", "No label available"),
-                        "ingredients": point.payload.get("Ingredients", "No ingredient names available"),
+                        "recipe_id": payload.get("recipe_id", "No recipe id available"),
+                        "recipe_name": payload.get("Name", "No name available"),
+                        "category": payload.get("Category", []),
+                        "label": payload.get("Label", []),
+                        "ingredients": payload.get("Ingredients", []),
                     }
                 )
             except Exception as e:
-                logger.error(f"The data field(s) is damaged: {e}")
+                logger.error(f"Error processing record {point.id} with payload {payload}: {e}")
                 continue
         return results
     
