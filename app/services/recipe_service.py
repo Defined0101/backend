@@ -55,10 +55,14 @@ def get_recipe_details(db: Session, recipe_id: int) -> RecipeSchema:
     
     ingredients_list = []
     if recipe.recipe_ingredients:
-        ingredients_list = [
-            RecipeIngredientDetail.model_validate(ri.ingredient, context={'quantity': ri.quantity, 'unit': ri.unit})
-             for ri in recipe.recipe_ingredients if ri.ingredient
-        ]
+        for ri in recipe.recipe_ingredients:
+            if ri.ingredient:
+                ingredient_detail = RecipeIngredientDetail.model_validate(ri.ingredient, context={'quantity': ri.quantity, 'unit': ri.unit})
+                if not ingredient_detail.unit: # Check if None or empty string
+                    ingredient_detail.unit = "piece"
+                if ingredient_detail.quantity is None: # Check if quantity is None
+                    ingredient_detail.quantity = 1.0
+                ingredients_list.append(ingredient_detail)
 
     label_list = _build_recipe_label_list(db, recipe)
     category_name = _get_category_name_for_recipe(db, recipe.recipe_id)
@@ -113,10 +117,14 @@ def get_user_saved_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
     for recipe in saved_recipes:
         ingredients_list = []
         if recipe.recipe_ingredients:
-            ingredients_list = [
-                 RecipeIngredientDetail.model_validate(ri.ingredient, context={'quantity': ri.quantity, 'unit': ri.unit})
-                 for ri in recipe.recipe_ingredients if ri.ingredient
-            ]
+            for ri in recipe.recipe_ingredients:
+                if ri.ingredient:
+                    ingredient_detail = RecipeIngredientDetail.model_validate(ri.ingredient, context={'quantity': ri.quantity, 'unit': ri.unit})
+                    if not ingredient_detail.unit: # Check if unit is None or empty
+                        ingredient_detail.unit = "piece"
+                    if ingredient_detail.quantity is None: # Check if quantity is None
+                        ingredient_detail.quantity = 1.0
+                    ingredients_list.append(ingredient_detail)
         
         label_list = sorted([pref_recipe.preference.pref_name
                              for pref_recipe in recipe.pref_recipes
@@ -173,10 +181,14 @@ def get_user_liked_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
     for recipe in liked_recipes:
         ingredients_list = []
         if recipe.recipe_ingredients:
-             ingredients_list = [
-                 RecipeIngredientDetail.model_validate(ri.ingredient, context={'quantity': ri.quantity, 'unit': ri.unit})
-                 for ri in recipe.recipe_ingredients if ri.ingredient
-            ]
+             for ri in recipe.recipe_ingredients:
+                 if ri.ingredient:
+                    ingredient_detail = RecipeIngredientDetail.model_validate(ri.ingredient, context={'quantity': ri.quantity, 'unit': ri.unit})
+                    if not ingredient_detail.unit:
+                        ingredient_detail.unit = "piece"
+                    if ingredient_detail.quantity is None:
+                        ingredient_detail.quantity = 1.0
+                    ingredients_list.append(ingredient_detail)
         
         label_list = sorted([pref_recipe.preference.pref_name
                              for pref_recipe in recipe.pref_recipes
@@ -269,10 +281,14 @@ def get_user_disliked_recipes(db: Session, user_id: str) -> List[RecipeSchema]:
     for recipe in disliked_recipes:
         ingredients_list = []
         if recipe.recipe_ingredients:
-             ingredients_list = [
-                 RecipeIngredientDetail.model_validate(ri.ingredient, context={'quantity': ri.quantity, 'unit': ri.unit})
-                 for ri in recipe.recipe_ingredients if ri.ingredient
-            ]
+             for ri in recipe.recipe_ingredients:
+                 if ri.ingredient:
+                    ingredient_detail = RecipeIngredientDetail.model_validate(ri.ingredient, context={'quantity': ri.quantity, 'unit': ri.unit})
+                    if not ingredient_detail.unit:
+                        ingredient_detail.unit = "piece"
+                    if ingredient_detail.quantity is None:
+                        ingredient_detail.quantity = 1.0
+                    ingredients_list.append(ingredient_detail)
         
         label_list = sorted([pref_recipe.preference.pref_name
                              for pref_recipe in recipe.pref_recipes
@@ -493,10 +509,14 @@ def get_user_recommendations(db: Session, user_id: str, limit: int = 10) -> List
                 recipe = recipe_map[rec_id]
                 ingredients_list = []
                 if recipe.recipe_ingredients:
-                    ingredients_list = [
-                        RecipeIngredientDetail.model_validate(ri.ingredient, context={'quantity': ri.quantity, 'unit': ri.unit})
-                        for ri in recipe.recipe_ingredients if ri.ingredient
-                    ]
+                    for ri in recipe.recipe_ingredients:
+                        if ri.ingredient:
+                            ingredient_detail = RecipeIngredientDetail.model_validate(ri.ingredient, context={'quantity': ri.quantity, 'unit': ri.unit})
+                            if not ingredient_detail.unit:
+                                ingredient_detail.unit = "piece"
+                            if ingredient_detail.quantity is None:
+                                ingredient_detail.quantity = 1.0
+                            ingredients_list.append(ingredient_detail)
                 
                 # --- Build label list directly from pre-loaded data ---
                 label_list = sorted([pref_recipe.preference.pref_name 
